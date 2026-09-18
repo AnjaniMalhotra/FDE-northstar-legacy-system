@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600">
+  <rect width="900" height="600" fill="#f1eee7"/>
+  <rect x="10" y="10" width="880" height="580" fill="none" stroke="#d9d3c9" stroke-width="2" stroke-dasharray="10 7" rx="14"/>
+  <g>
+    <rect x="420.0" y="260.0" width="60" height="44" rx="6" fill="none" stroke="#c9c2b4" stroke-width="3"/>
+    <circle cx="437.0" cy="276.0" r="5" fill="#c9c2b4"/>
+    <path d="M 420.0 298.0 L 442.0 279.0 L 456.0 291.0 L 468.0 280.0 L 480.0 298.0 Z" fill="#c9c2b4"/>
+  </g>
+  <text x="450.0" y="340.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#86807a">Add team or office photo (900×600)</text>
+</svg>

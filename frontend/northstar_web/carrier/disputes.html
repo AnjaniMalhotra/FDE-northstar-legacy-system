@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Disputes — Northstar Freight Carrier Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="carrier">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Carrier Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="shipments.html"><span class="icon">🚛</span> My Shipments</a>
+      <a href="disputes.html" class="active"><span class="icon">⚠️</span> Disputes / Revisions <span class="badge-count" id="badge-disputes" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1>Disputes &amp; Revisions</h1>
+      <div class="topbar-meta">Invoices Northstar has put on hold, awaiting your revision</div>
+    </div>
+    <div class="content">
+      <div class="card">
+        <div class="card-header"><h2>Needs Your Attention</h2></div>
+        <div id="table-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("carrier");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  await renderCarrierBadges(user.carrierId);
+
+  const disputed = await NorthstarDB.query("invoices", (i) => i.carrierId === user.carrierId && i.status === "ON_HOLD");
+  const shipments = await NorthstarDB.all("shipments");
+
+  const wrap = document.getElementById("table-wrap");
+  wrap.innerHTML = disputed.length === 0 ? `<div class="card-empty">Nothing needs your attention right now.</div>` :
+    `<table><thead><tr><th>Invoice</th><th>Shipment</th><th class="num">Total Billed</th><th>Northstar's Note</th><th></th></tr></thead>
+    <tbody>${disputed.map((i) => {
+      const s = shipments.find((s) => s.id === i.shipmentId);
+      const lastNote = (i.decisions || []).filter((d) => d.decision === "ON_HOLD").slice(-1)[0];
+      return `<tr>
+        <td>#${i.id}</td><td>${s ? `${s.origin} → ${s.dest}` : "—"}</td>
+        <td class="num amt">${formatCurrency(i.totalAmount)}</td>
+        <td style="max-width:320px;">${lastNote ? lastNote.note : ""}</td>
+        <td><a class="btn btn-primary btn-sm" href="invoice-view.html?id=${i.id}">Review &amp; Revise &rarr;</a></td>
+      </tr>`;
+    }).join("")}</tbody></table>`;
+}
+})();
+</script>
+</body>
+</html>

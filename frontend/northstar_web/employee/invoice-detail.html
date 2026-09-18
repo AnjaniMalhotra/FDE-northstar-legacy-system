@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Detail — Northstar Freight Employee Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="employee">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Employee Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="booking-requests.html"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
+      <a href="invoices.html" class="active"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar"><h1>Invoice Detail</h1></div>
+    <nav class="system-tabs">
+      <a href="shipments.html">🚛 Shipments (TMS)</a>
+      <a href="dock-events.html">🕒 Dock Events (DockTrak)</a>
+      <a href="carriers.html">🏷️ Carrier Master</a>
+      <a href="transcheck.html">🛡️ TransCheck</a>
+      <a href="policy-reference.html">📄 Policy Reference</a>
+    </nav>
+    <div class="content">
+      <div class="breadcrumb"><a href="invoices.html">Invoices</a> &rsaquo; <span id="crumb"></span></div>
+      <div id="page-body"></div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("employee");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  await renderEmployeeBadges();
+
+  const id = Number(new URLSearchParams(window.location.search).get("id"));
+  const body = document.getElementById("page-body");
+  const canDecide = user.role === "ACCOUNTS_PAYABLE" || user.role === "ADMIN";
+
+  async function render() {
+    const invoice = await NorthstarDB.find("invoices", id);
+    if (!invoice) { body.innerHTML = `<div class="card"><div class="card-empty">Invoice not found.</div></div>`; return; }
+    document.getElementById("crumb").textContent = `Invoice #${invoice.id}`;
+    const carrier = await NorthstarDB.find("carriers", invoice.carrierId);
+    const shipment = await NorthstarDB.find("shipments", invoice.shipmentId);
+
+    const historyRows = (invoice.decisions || []).map((d) => `
+      <tr><td>${formatDateTime(d.at)}</td><td>${pillHtml(d.decision)}</td><td>${d.decidedBy}</td><td>${d.note || ""}</td></tr>
+    `).join("");
+
+    body.innerHTML = `
+      <div class="page-header">
+        <div class="title-block">
+          <h1>Invoice #${invoice.id}</h1>
+          <p>${carrier ? carrier.name : "—"} &middot; Shipment #${shipment ? shipment.id : "—"} &middot; ${shipment ? `${shipment.origin} → ${shipment.dest}` : ""}</p>
+        </div>
+        ${pillHtml(invoice.status)}
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>Invoice Charges</h2></div>
+        <div class="card-body">
+          <table><tbody>
+            <tr><td>Linehaul</td><td class="num amt">${formatCurrency(invoice.linehaulAmount)}</td></tr>
+            <tr><td>Fuel Surcharge</td><td class="num amt">${formatCurrency(invoice.fuelSurcharge)}</td></tr>
+            <tr><td>Detention (${invoice.detentionHoursBilled} hrs billed)</td><td class="num amt">${formatCurrency(invoice.detentionAmountBilled)}</td></tr>
+            <tr style="font-weight:700;"><td>Total</td><td class="num amt">${formatCurrency(invoice.totalAmount)}</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+
+      <p class="helper-notice" style="margin-top:18px;">Northstar's systems do not automatically verify detention hours billed against the
+        load's agreed terms or the real dock timestamps — use the tabs above (Dock Events, Shipments, Carrier Master, TransCheck, Policy Reference)
+        to compare by hand before deciding.</p>
+
+      <div class="card">
+        <div class="card-header"><h2>Decision</h2></div>
+        <div class="card-body">
+          ${invoice.status === "APPROVED"
+            ? `<p class="muted">This invoice has been approved and scheduled for payment.</p>`
+            : canDecide
+              ? `<div class="form-actions" style="margin-top:0;">
+                   <button class="btn btn-danger" id="hold-btn">Hold Payment (Dispute)</button>
+                   <button class="btn btn-primary" id="approve-btn">Approve for Payment</button>
+                 </div>`
+              : `<p class="helper-notice">Only Accounts Payable (or an Admin) can approve or hold invoices. You're logged in as ${user.role.replace("_"," ")}.</p>`
+          }
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px;">
+        <div class="card-header"><h2>Decision History</h2></div>
+        <div>${historyRows ? `<table><thead><tr><th>When</th><th>Decision</th><th>By</th><th>Note</th></tr></thead><tbody>${historyRows}</tbody></table>` : `<div class="card-empty">No decisions recorded yet.</div>`}</div>
+      </div>`;
+
+    if (invoice.status !== "APPROVED" && canDecide) {
+      document.getElementById("approve-btn").addEventListener("click", () => {
+        ActionModal.open({
+          title: "Approve Invoice for Payment",
+          desc: `This schedules ${formatCurrency(invoice.totalAmount)} for payment to ${carrier.name}.`,
+          noteRequired: false, noteLabel: "Note",
+          confirmLabel: "Approve for Payment", confirmClass: "btn-primary",
+          onConfirm: async (note) => {
+            const decisions = (invoice.decisions || []).concat([{ decidedBy: user.name, decision: "APPROVED", note: note || "Verified — matches agreed terms.", at: new Date().toISOString() }]);
+            await NorthstarDB.update("invoices", invoice.id, { status: "APPROVED", decisions });
+            toast("Invoice approved for payment.");
+            await render();
+          },
+        });
+      });
+      document.getElementById("hold-btn").addEventListener("click", () => {
+        ActionModal.open({
+          title: "Hold Payment — Dispute Invoice",
+          desc: "This carrier will see your note and be asked to revise and resubmit the invoice.",
+          noteRequired: true, noteLabel: "What's wrong, and what needs to change",
+          confirmLabel: "Hold Payment", confirmClass: "btn-danger",
+          onConfirm: async (note) => {
+            const decisions = (invoice.decisions || []).concat([{ decidedBy: user.name, decision: "ON_HOLD", note, at: new Date().toISOString() }]);
+            await NorthstarDB.update("invoices", invoice.id, { status: "ON_HOLD", decisions });
+            toast("Invoice put on hold. Carrier notified.", "bad");
+            await render();
+          },
+        });
+      });
+    }
+  }
+  await render();
+}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Request Detail — Northstar Freight</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="shipper">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Shipper Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html" class="active"><span class="icon">📋</span> My Requests</a>
+      <a href="new-shipment.html"><span class="icon">➕</span> New Shipment Request</a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar"><h1>Request Detail</h1></div>
+    <div class="content" style="max-width: 900px;">
+      <div class="breadcrumb"><a href="dashboard.html">My Requests</a> &rsaquo; <span id="crumb-id"></span></div>
+      <div id="page-body"></div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("shipper");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+
+  const id = Number(new URLSearchParams(window.location.search).get("id"));
+  const request = await NorthstarDB.find("shipmentRequests", id);
+  const body = document.getElementById("page-body");
+
+  if (!request || request.shipperId !== user.id) {
+    body.innerHTML = `<div class="card"><div class="card-empty">Request not found.</div></div>`;
+  } else {
+    document.getElementById("crumb-id").textContent = `Request #${request.id}`;
+    const carrier = await NorthstarDB.find("carriers", request.carrierId);
+    const shipment = (await NorthstarDB.query("shipments", (s) => s.requestId === request.id))[0];
+    const invoice = shipment ? (await NorthstarDB.query("invoices", (i) => i.shipmentId === shipment.id))[0] : null;
+
+    // ------------------------------------------
+    // TIMELINE — build step-by-step based on real request/shipment/invoice state
+    // ------------------------------------------
+    const steps = [{ title: "Request Submitted", meta: `Pickup requested ${formatDate(request.pickupDate)}`, state: "done" }];
+
+    if (request.status === "REJECTED") {
+      steps.push({ title: "Rejected by Northstar Operations", meta: request.employeeNote || "No reason given.", state: "bad", note: request.employeeNote });
+    } else if (request.status === "PENDING_REVIEW") {
+      steps.push({ title: "Under Review", meta: "Northstar Operations is reviewing this request.", state: "current" });
+    } else {
+      steps.push({ title: "Approved by Northstar Operations", meta: request.employeeNote || "Booking confirmed.", state: "done" });
+      if (shipment) {
+        const shipDone = ["ENROUTE", "AT_DOCK", "DELIVERED"].includes(shipment.status);
+        steps.push({ title: "Scheduled for Pickup", meta: `${shipment.origin} → ${shipment.dest}`, state: shipDone || shipment.status === "SCHEDULED" ? "done" : "current" });
+        steps.push({ title: "Delivered", meta: shipment.status === "DELIVERED" ? `Delivered ${formatDate(shipment.deliveryAppt)}` : "In transit", state: shipment.status === "DELIVERED" ? "done" : "current" });
+        if (invoice) {
+          steps.push({ title: "Carrier Invoice " + (invoice.status === "APPROVED" ? "Approved" : invoice.status === "ON_HOLD" ? "On Hold" : "Submitted"),
+            meta: `Total billed ${formatCurrency(invoice.totalAmount)}`, state: invoice.status === "APPROVED" ? "done" : invoice.status === "ON_HOLD" ? "bad" : "current" });
+        }
+      }
+    }
+
+    const timelineHtml = steps.map((s) => `
+      <div class="timeline-step ${s.state}">
+        <div class="timeline-dot"></div>
+        <div>
+          <div class="timeline-title">${s.title}</div>
+          <div class="timeline-meta">${s.meta}</div>
+        </div>
+      </div>`).join("");
+
+    body.innerHTML = `
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><h2>Shipment Details</h2></div>
+          <div class="card-body">
+            <table>
+              <tbody>
+                <tr><td class="muted">Route</td><td>${request.origin} &rarr; ${request.dest}</td></tr>
+                <tr><td class="muted">Weight</td><td>${request.weightLbs.toLocaleString()} lbs</td></tr>
+                <tr><td class="muted">Goods</td><td>${request.goodsDescription}</td></tr>
+                <tr><td class="muted">Requested Pickup</td><td>${formatDate(request.pickupDate)}</td></tr>
+                <tr><td class="muted">Carrier</td><td>${carrier ? carrier.name : "—"}</td></tr>
+                <tr><td class="muted">Quoted Price</td><td class="amt">${formatCurrency(request.quotedPrice)}</td></tr>
+                <tr><td class="muted">Status</td><td>${pillHtml(request.status)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2>Status Timeline</h2></div>
+          <div class="card-body"><div class="timeline">${timelineHtml}</div></div>
+        </div>
+      </div>`;
+  }
+}
+})();
+</script>
+</body>
+</html>

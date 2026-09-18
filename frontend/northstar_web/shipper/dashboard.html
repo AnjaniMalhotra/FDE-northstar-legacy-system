@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Northstar Freight Shipper Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="shipper">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Shipper Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html" class="active"><span class="icon">📋</span> My Requests</a>
+      <a href="new-shipment.html"><span class="icon">➕</span> New Shipment Request</a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1>My Shipment Requests</h1>
+      <div class="topbar-meta" id="company-label"></div>
+    </div>
+
+    <div class="content">
+      <div class="kpi-row">
+        <div class="kpi-tile"><div class="kpi-top"><span class="kpi-icon">⏳</span><span class="kpi-label">Pending Review</span></div><span class="kpi-num" id="kpi-pending">0</span></div>
+        <div class="kpi-tile"><div class="kpi-top"><span class="kpi-icon">🚚</span><span class="kpi-label">Booked / In Transit</span></div><span class="kpi-num" id="kpi-active">0</span></div>
+        <div class="kpi-tile"><div class="kpi-top"><span class="kpi-icon">📦</span><span class="kpi-label">Delivered</span></div><span class="kpi-num" id="kpi-delivered">0</span></div>
+        <div class="kpi-tile accent"><div class="kpi-top"><span class="kpi-icon">📋</span><span class="kpi-label">Total Requests</span></div><span class="kpi-num" id="kpi-total">0</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>All Requests</h2>
+            <div class="sub">Click a request to see its full status history</div>
+          </div>
+          <a class="btn btn-primary btn-sm" href="new-shipment.html">+ New Shipment Request</a>
+        </div>
+        <div id="requests-table-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("shipper");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  document.getElementById("company-label").textContent = user.companyName;
+
+  const requests = (await NorthstarDB.query("shipmentRequests", (r) => r.shipperId === user.id))
+    .sort((a, b) => b.id - a.id);
+  const allShipments = await NorthstarDB.all("shipments");
+
+  // ------------------------------------------
+  // EFFECTIVE STATUS — once approved, show the shipment's real progress instead
+  // ------------------------------------------
+  function effectiveStatus(request) {
+    if (request.status !== "APPROVED") return request.status;
+    const shipment = allShipments.find((s) => s.requestId === request.id);
+    return shipment ? shipment.status : "APPROVED";
+  }
+
+  document.getElementById("kpi-total").textContent = requests.length;
+  document.getElementById("kpi-pending").textContent = requests.filter((r) => r.status === "PENDING_REVIEW").length;
+  document.getElementById("kpi-delivered").textContent = requests.filter((r) => effectiveStatus(r) === "DELIVERED").length;
+  document.getElementById("kpi-active").textContent = requests.filter((r) => {
+    const s = effectiveStatus(r);
+    return ["SCHEDULED", "ENROUTE", "AT_DOCK"].includes(s);
+  }).length;
+
+  const wrap = document.getElementById("requests-table-wrap");
+  if (requests.length === 0) {
+    wrap.innerHTML = `<div class="card-empty">No shipment requests yet. <a href="new-shipment.html">Book your first shipment</a>.</div>`;
+  } else {
+    const carriers = await NorthstarDB.all("carriers");
+    const rows = requests.map((r) => {
+      const carrier = carriers.find((c) => c.id === r.carrierId);
+      return `<tr class="clickable" onclick="window.location.href='request-detail.html?id=${r.id}'">
+        <td>#${r.id}</td>
+        <td>${r.origin} &rarr; ${r.dest}</td>
+        <td>${carrier ? carrier.name : "—"}</td>
+        <td>${formatDate(r.pickupDate)}</td>
+        <td class="num amt">${formatCurrency(r.quotedPrice)}</td>
+        <td>${pillHtml(effectiveStatus(r))}</td>
+      </tr>`;
+    }).join("");
+    wrap.innerHTML = `<table>
+      <thead><tr><th>ID</th><th>Route</th><th>Carrier</th><th>Pickup</th><th class="num">Quoted Price</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Northstar Freight Carrier Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="carrier">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Carrier Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html" class="active"><span class="icon">🏠</span> Dashboard</a>
+      <a href="shipments.html"><span class="icon">🚛</span> My Shipments</a>
+      <a href="disputes.html"><span class="icon">⚠️</span> Disputes / Revisions <span class="badge-count" id="badge-disputes" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1>Dashboard</h1>
+      <div class="topbar-meta" id="company-label"></div>
+    </div>
+    <div class="content">
+      <div class="kpi-row">
+        <div class="kpi-tile"><div class="kpi-top"><span class="kpi-icon">🚚</span><span class="kpi-label">Active Shipments</span></div><span class="kpi-num" id="kpi-active">0</span></div>
+        <div class="kpi-tile"><div class="kpi-top"><span class="kpi-icon">🧾</span><span class="kpi-label">Delivered — Needs Invoice</span></div><span class="kpi-num" id="kpi-need-invoice">0</span></div>
+        <div class="kpi-tile"><div class="kpi-top"><span class="kpi-icon">⏳</span><span class="kpi-label">Invoices Pending Review</span></div><span class="kpi-num" id="kpi-pending">0</span></div>
+        <div class="kpi-tile accent"><div class="kpi-top"><span class="kpi-icon">⚠</span><span class="kpi-label">Needs Revision</span></div><span class="kpi-num" id="kpi-hold">0</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>My Shipments</h2><a class="btn btn-secondary btn-sm" href="shipments.html">View All</a></div>
+        <div id="table-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("carrier");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  document.getElementById("company-label").textContent = user.companyName;
+  await renderCarrierBadges(user.carrierId);
+
+  const shipments = (await NorthstarDB.query("shipments", (s) => s.carrierId === user.carrierId)).sort((a, b) => b.id - a.id);
+  const invoices = await NorthstarDB.query("invoices", (i) => i.carrierId === user.carrierId);
+
+  function invoiceFor(shipmentId) { return invoices.find((i) => i.shipmentId === shipmentId); }
+
+  document.getElementById("kpi-active").textContent = shipments.filter((s) => ["SCHEDULED", "ENROUTE", "AT_DOCK"].includes(s.status)).length;
+  document.getElementById("kpi-need-invoice").textContent = shipments.filter((s) => s.status === "DELIVERED" && !invoiceFor(s.id)).length;
+  document.getElementById("kpi-pending").textContent = invoices.filter((i) => i.status === "PENDING_APPROVAL").length;
+  document.getElementById("kpi-hold").textContent = invoices.filter((i) => i.status === "ON_HOLD").length;
+
+  const wrap = document.getElementById("table-wrap");
+  wrap.innerHTML = shipments.length === 0 ? `<div class="card-empty">No shipments tendered to you yet.</div>` :
+    `<table><thead><tr><th>ID</th><th>Route</th><th>Pickup</th><th class="num">Agreed Rate</th><th>Status</th><th>Invoice</th></tr></thead>
+    <tbody>${shipments.slice(0, 8).map((s) => {
+      const inv = invoiceFor(s.id);
+      return `<tr class="clickable" onclick="window.location.href='shipment-detail.html?id=${s.id}'">
+        <td>#${s.id}</td><td>${s.origin} &rarr; ${s.dest}</td><td>${formatDate(s.pickupAppt)}</td>
+        <td class="num amt">${formatCurrency(s.agreedRate)}</td><td>${pillHtml(s.status)}</td>
+        <td>${inv ? pillHtml(inv.status) : "—"}</td>
+      </tr>`;
+    }).join("")}</tbody></table>`;
+}
+})();
+</script>
+</body>
+</html>

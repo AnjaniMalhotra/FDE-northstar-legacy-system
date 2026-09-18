@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Booking Requests — Northstar Freight Employee Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="employee">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Employee Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="booking-requests.html" class="active"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
+      <a href="invoices.html"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar"><h1>Booking Requests</h1></div>
+    <nav class="system-tabs">
+      <a href="shipments.html">🚛 Shipments (TMS)</a>
+      <a href="dock-events.html">🕒 Dock Events (DockTrak)</a>
+      <a href="carriers.html">🏷️ Carrier Master</a>
+      <a href="transcheck.html">🛡️ TransCheck</a>
+      <a href="policy-reference.html">📄 Policy Reference</a>
+    </nav>
+    <div class="content">
+      <div class="card">
+        <div class="card-header"><div><h2>All Requests</h2><div class="sub">Oldest pending first</div></div></div>
+        <div class="filter-bar" id="filter-bar"></div>
+        <div id="table-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("employee");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  await renderEmployeeBadges();
+
+  const requests = (await NorthstarDB.all("shipmentRequests")).sort((a, b) => {
+    if (a.status === "PENDING_REVIEW" && b.status !== "PENDING_REVIEW") return -1;
+    if (b.status === "PENDING_REVIEW" && a.status !== "PENDING_REVIEW") return 1;
+    return b.id - a.id;
+  });
+  const carriers = await NorthstarDB.all("carriers");
+  const shippers = await NorthstarDB.all("users");
+
+  let activeFilter = "ALL";
+  function render() {
+    renderFilterPills("filter-bar", [
+      { value: "ALL", label: "All" },
+      { value: "PENDING_REVIEW", label: "Pending Review" },
+      { value: "APPROVED", label: "Approved" },
+      { value: "REJECTED", label: "Rejected" },
+    ], activeFilter, (v) => { activeFilter = v; render(); });
+
+    const rows = activeFilter === "ALL" ? requests : requests.filter((r) => r.status === activeFilter);
+    const wrap = document.getElementById("table-wrap");
+    wrap.innerHTML = rows.length === 0 ? `<div class="card-empty">No booking requests match this filter.</div>` :
+      `<table><thead><tr><th>ID</th><th>Shipper</th><th>Route</th><th>Weight</th><th>Carrier Requested</th><th class="num">Quoted</th><th>Status</th></tr></thead>
+      <tbody>${rows.map((r) => {
+        const shipper = shippers.find((s) => s.id === r.shipperId);
+        const carrier = carriers.find((c) => c.id === r.carrierId);
+        return `<tr class="clickable" onclick="window.location.href='booking-detail.html?id=${r.id}'">
+          <td>#${r.id}</td><td>${shipper ? shipper.companyName : "—"}</td>
+          <td>${r.origin} &rarr; ${r.dest}</td><td>${r.weightLbs.toLocaleString()} lbs</td>
+          <td>${carrier ? carrier.name : "—"}</td><td class="num amt">${formatCurrency(r.quotedPrice)}</td>
+          <td>${pillHtml(r.status)}</td>
+        </tr>`;
+      }).join("")}</tbody></table>`;
+  }
+  render();
+}
+})();
+</script>
+</body>
+</html>

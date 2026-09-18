@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Policy Reference — Northstar Freight Employee Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+<style>
+  .policy-card ul { list-style: disc; padding-left: 20px; margin-top: 8px; }
+  .policy-card li { margin-bottom: 8px; font-size: 13.5px; line-height: 1.5; }
+  .policy-card h3 { font-size: 13.5px; margin: 18px 0 4px; color: var(--ink-700); }
+  .policy-card h3:first-child { margin-top: 0; }
+  .num-badge { display: inline-block; background: var(--accent-weak); color: var(--accent); font-weight: 700; border-radius: 6px; padding: 1px 7px; font-size: 12px; margin-right: 6px; }
+</style>
+</head>
+<body data-portal="employee">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Employee Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="booking-requests.html"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
+      <a href="invoices.html"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1>Policy Reference</h1>
+      <div class="topbar-meta">Finance &amp; Compliance &middot; v1.0, effective Jan 2026</div>
+    </div>
+    <nav class="system-tabs">
+      <a href="shipments.html">🚛 Shipments (TMS)</a>
+      <a href="dock-events.html">🕒 Dock Events (DockTrak)</a>
+      <a href="carriers.html">🏷️ Carrier Master</a>
+      <a href="transcheck.html">🛡️ TransCheck</a>
+      <a href="policy-reference.html" class="active">📄 Policy Reference</a>
+    </nav>
+    <div class="content" style="max-width: 820px;">
+      <p class="helper-notice">Read this before deciding on a flagged discrepancy. Nothing in this system applies these rules for you — every threshold below is checked by hand.</p>
+
+      <div class="card policy-card" style="margin-bottom:18px;">
+        <div class="card-header"><h2>Accessorial Charge Audit &amp; Dispute Policy</h2></div>
+        <div class="card-body">
+          <h3><span class="num-badge">2</span>Detention Charge Verification</h3>
+          <ul>
+            <li>A detention charge is a <strong>verified discrepancy</strong> only when the billed time differs from the actual dock dwell time by more than <strong>15 minutes</strong>, <em>and</em> the resulting dollar difference is more than <strong>$25</strong>.</li>
+            <li>Only an <strong>overcharge</strong> (billed &gt; actual) can be put on hold as a dispute. An undercharge is a data-quality note, never a hold.</li>
+            <li>Anything smaller than this is normal rounding/timestamp noise — do not hold it.</li>
+          </ul>
+          <h3><span class="num-badge">3</span>Escalation Tiers</h3>
+          <ul>
+            <li><strong>Tier 1 (any employee):</strong> a single invoice with a verified discrepancy under <strong>$250</strong> can be resolved directly.</li>
+            <li><strong>Tier 2 (Admin sign-off required):</strong> the discrepancy is <strong>$250 or more</strong>, OR the carrier already has <strong>2+ upheld disputes</strong> in the trailing 90 days, OR the carrier is on the <strong>Elevated Risk</strong> list.</li>
+          </ul>
+          <h3><span class="num-badge">4</span>Repeat Pattern Rule</h3>
+          <ul>
+            <li>3 or more flagged/on-hold invoices from the same carrier within a rolling 90-day window requires Tier 2 review — regardless of any single invoice's dollar amount.</li>
+          </ul>
+          <h3><span class="num-badge">5</span>What May Happen Without Extra Sign-off</h3>
+          <ul>
+            <li>Reading invoice/shipment/dock data, and holding a Tier 1 payment with a note, may be done directly.</li>
+            <li>Disputing a charge with a carrier, releasing a held payment, or placing a carrier on Elevated Risk always requires a second person's review.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card policy-card">
+        <div class="card-header"><h2>Detention Dispute Workflow (SOP)</h2></div>
+        <div class="card-body">
+          <h3>Reviewing a Flagged Discrepancy</h3>
+          <ul>
+            <li>Open the invoice and the real dock timestamps — confirm the numbers make sense before acting.</li>
+            <li>If the discrepancy looks like a data problem (e.g. a missing timestamp), don't treat it as a carrier dispute — see below.</li>
+          </ul>
+          <h3>Missing or Incomplete Dock Timestamps</h3>
+          <ul>
+            <li>Do not assume a charge is legitimate just because it couldn't be checked — that's not evidence the charge is fine.</li>
+            <li>Check with dispatch or the carrier for the missing timestamp before approving payment.</li>
+          </ul>
+          <h3>Carriers on the Elevated Risk List</h3>
+          <ul>
+            <li>Every invoice from an Elevated Risk carrier is treated as Tier 2, regardless of dollar amount — review it personally, never auto-approve.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("employee");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  await renderEmployeeBadges();
+}
+})();
+</script>
+</body>
+</html>

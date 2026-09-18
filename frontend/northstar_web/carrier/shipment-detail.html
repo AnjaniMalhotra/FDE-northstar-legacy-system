@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shipment Detail — Northstar Freight Carrier Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="carrier">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Carrier Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="shipments.html" class="active"><span class="icon">🚛</span> My Shipments</a>
+      <a href="disputes.html"><span class="icon">⚠️</span> Disputes / Revisions <span class="badge-count" id="badge-disputes" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar"><h1>Shipment Detail</h1></div>
+    <div class="content">
+      <div class="breadcrumb"><a href="shipments.html">My Shipments</a> &rsaquo; <span id="crumb"></span></div>
+      <div id="page-body"></div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("carrier");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  await renderCarrierBadges(user.carrierId);
+
+  const id = Number(new URLSearchParams(window.location.search).get("id"));
+  const body = document.getElementById("page-body");
+
+  async function render() {
+    const shipment = await NorthstarDB.find("shipments", id);
+    if (!shipment || shipment.carrierId !== user.carrierId) {
+      body.innerHTML = `<div class="card"><div class="card-empty">Shipment not found.</div></div>`;
+      return;
+    }
+    document.getElementById("crumb").textContent = `Shipment #${shipment.id}`;
+    const invoice = (await NorthstarDB.query("invoices", (i) => i.shipmentId === shipment.id))[0];
+
+    let actionHtml = "";
+    if (shipment.status !== "DELIVERED") {
+      actionHtml = `<button class="btn btn-primary" id="deliver-btn">Mark as Delivered</button>`;
+    } else if (!invoice) {
+      actionHtml = `<a class="btn btn-primary" href="invoice-form.html?shipmentId=${shipment.id}">Create Invoice &rarr;</a>`;
+    } else {
+      actionHtml = `<a class="btn btn-secondary" href="invoice-view.html?id=${invoice.id}">View Invoice (${invoice.status.replace("_"," ")}) &rarr;</a>`;
+    }
+
+    body.innerHTML = `
+      <div class="page-header">
+        <div class="title-block"><h1>${shipment.origin} &rarr; ${shipment.dest}</h1><p>Shipment #${shipment.id}</p></div>
+        ${pillHtml(shipment.status)}
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>Shipment Terms</h2></div>
+        <div class="card-body">
+          <table><tbody>
+            <tr><td class="muted">Weight</td><td>${shipment.weightLbs ? shipment.weightLbs.toLocaleString() + " lbs" : "—"}</td></tr>
+            <tr><td class="muted">Goods</td><td>${shipment.goodsDescription || "—"}</td></tr>
+            <tr><td class="muted">Pickup Appointment</td><td>${formatDateTime(shipment.pickupAppt)}</td></tr>
+            <tr><td class="muted">Delivery Appointment</td><td>${formatDateTime(shipment.deliveryAppt)}</td></tr>
+            <tr><td class="muted">Agreed Rate</td><td class="amt">${formatCurrency(shipment.agreedRate)}</td></tr>
+            <tr><td class="muted">Free Detention Time</td><td>${shipment.detentionFreeHours} hrs</td></tr>
+            <tr><td class="muted">Detention Rate</td><td>${formatCurrency(shipment.detentionRatePerHour)}/hr after free time</td></tr>
+          </tbody></table>
+          <div class="divider"></div>
+          ${actionHtml}
+        </div>
+      </div>`;
+
+    const deliverBtn = document.getElementById("deliver-btn");
+    if (deliverBtn) {
+      deliverBtn.addEventListener("click", async () => {
+        await NorthstarDB.update("shipments", shipment.id, { status: "DELIVERED" });
+        await autoLogDockEvents(shipment); // telematics/geofence auto-captures the real arrival/departure — no one types this in
+        toast("Shipment marked delivered. Dock arrival/departure captured automatically.");
+        await render();
+      });
+    }
+  }
+  await render();
+}
+})();
+</script>
+</body>
+</html>

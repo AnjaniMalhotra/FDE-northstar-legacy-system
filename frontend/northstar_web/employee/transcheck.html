@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TransCheck — Northstar Freight Employee Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+<style>
+  .info-banner {
+    display: flex; align-items: center; gap: 10px; background: #f5f3ff; color: #6d28d9;
+    border: 1px solid #ddd6fe; border-radius: var(--radius-sm); padding: 12px 16px;
+    font-size: 12.5px; font-weight: 600; margin-bottom: 18px;
+  }
+</style>
+</head>
+<body data-portal="employee">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Employee Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="booking-requests.html"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
+      <a href="invoices.html"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1>TransCheck</h1>
+      <div class="topbar-meta">Carrier Safety &amp; Compliance</div>
+    </div>
+    <nav class="system-tabs">
+      <a href="shipments.html">🚛 Shipments (TMS)</a>
+      <a href="dock-events.html">🕒 Dock Events (DockTrak)</a>
+      <a href="carriers.html">🏷️ Carrier Master</a>
+      <a href="transcheck.html" class="active">🛡️ TransCheck</a>
+      <a href="policy-reference.html">📄 Policy Reference</a>
+    </nav>
+    <div class="content">
+      <div class="info-banner">Safety ratings, out-of-service violations, and insurance status for every carrier on file.</div>
+
+      <div class="card">
+        <div class="card-header"><h2>Carrier Safety Lookup</h2></div>
+        <div class="filter-bar">
+          <input type="text" id="search-box" class="filter-search" placeholder="Search by carrier name or MC number…" style="margin-left:0;">
+          <span id="rating-filter-bar" style="display:flex; gap:8px;"></span>
+        </div>
+        <div id="table-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("employee");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  await renderEmployeeBadges();
+
+  const carriers = await NorthstarDB.all("carriers");
+  let ratingFilter = "ALL";
+  let searchTerm = "";
+
+  function render() {
+    renderFilterPills("rating-filter-bar", [
+      { value: "ALL", label: "All Ratings" },
+      { value: "Satisfactory", label: "Satisfactory" },
+      { value: "Conditional", label: "Conditional" },
+    ], ratingFilter, (v) => { ratingFilter = v; render(); });
+
+    const term = searchTerm.trim().toLowerCase();
+    const rows = carriers.filter((c) => {
+      const matchesRating = ratingFilter === "ALL" || c.safetyRating === ratingFilter;
+      const matchesSearch = !term || c.name.toLowerCase().includes(term) || c.mcNumber.toLowerCase().includes(term);
+      return matchesRating && matchesSearch;
+    });
+
+    const wrap = document.getElementById("table-wrap");
+    wrap.innerHTML = rows.length === 0 ? `<div class="card-empty">No carriers match this search.</div>` :
+      `<table><thead><tr>
+        <th>Carrier</th><th>MC Number</th><th>Safety Rating</th><th class="num">OOS Violations</th><th>Insurance Status</th>
+      </tr></thead><tbody>${rows.map((c) => `<tr>
+          <td>${c.name}</td><td>${c.mcNumber}</td><td>${pillHtml(c.safetyRating)}</td>
+          <td class="num">${c.oosViolations}</td>
+          <td>${pillHtml(c.insuranceStatus === "Active" ? "APPROVED" : "REJECTED", c.insuranceStatus)}</td>
+        </tr>`).join("")}</tbody></table>`;
+  }
+  document.getElementById("search-box").addEventListener("input", (e) => { searchTerm = e.target.value; render(); });
+  render();
+}
+})();
+</script>
+</body>
+</html>

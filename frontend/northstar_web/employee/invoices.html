@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoices — Northstar Freight Employee Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="employee">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Employee Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="booking-requests.html"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
+      <a href="invoices.html" class="active"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1>Invoices</h1>
+      <div class="topbar-meta">Accounts Payable &middot; Invoice Processing</div>
+    </div>
+    <nav class="system-tabs">
+      <a href="shipments.html">🚛 Shipments (TMS)</a>
+      <a href="dock-events.html">🕒 Dock Events (DockTrak)</a>
+      <a href="carriers.html">🏷️ Carrier Master</a>
+      <a href="transcheck.html">🛡️ TransCheck</a>
+      <a href="policy-reference.html">📄 Policy Reference</a>
+    </nav>
+    <div class="content">
+      <div class="kpi-row" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="kpi-tile"><div class="kpi-top"><span class="kpi-icon">🧾</span><span class="kpi-label">Awaiting Review</span></div><span class="kpi-num" id="kpi-pending">0</span></div>
+        <div class="kpi-tile"><div class="kpi-top"><span class="kpi-icon">⏸</span><span class="kpi-label">On Hold</span></div><span class="kpi-num" id="kpi-hold">0</span></div>
+        <div class="kpi-tile accent"><div class="kpi-top"><span class="kpi-icon">✓</span><span class="kpi-label">Approved</span></div><span class="kpi-num" id="kpi-approved">0</span></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div><h2>Invoice Queue</h2><div class="sub">Oldest pending first</div></div></div>
+        <div class="filter-bar" id="filter-bar"></div>
+        <div id="table-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("employee");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  await renderEmployeeBadges();
+
+  const invoices = (await NorthstarDB.all("invoices")).sort((a, b) => {
+    const order = { PENDING_APPROVAL: 0, ON_HOLD: 1, APPROVED: 2 };
+    return order[a.status] - order[b.status] || new Date(a.submittedAt) - new Date(b.submittedAt);
+  });
+  const carriers = await NorthstarDB.all("carriers");
+  const shipments = await NorthstarDB.all("shipments");
+
+  document.getElementById("kpi-pending").textContent = invoices.filter((i) => i.status === "PENDING_APPROVAL").length;
+  document.getElementById("kpi-hold").textContent = invoices.filter((i) => i.status === "ON_HOLD").length;
+  document.getElementById("kpi-approved").textContent = invoices.filter((i) => i.status === "APPROVED").length;
+
+  let activeFilter = "ALL";
+  function render() {
+    renderFilterPills("filter-bar", [
+      { value: "ALL", label: "All" },
+      { value: "PENDING_APPROVAL", label: "Awaiting Review" },
+      { value: "ON_HOLD", label: "On Hold" },
+      { value: "APPROVED", label: "Approved" },
+    ], activeFilter, (v) => { activeFilter = v; render(); });
+
+    const rows = activeFilter === "ALL" ? invoices : invoices.filter((i) => i.status === activeFilter);
+    const wrap = document.getElementById("table-wrap");
+    wrap.innerHTML = rows.length === 0 ? `<div class="card-empty">No invoices match this filter.</div>` :
+      `<table><thead><tr><th>Invoice</th><th>Carrier</th><th>Route</th><th>Submitted</th><th class="num">Total</th><th>Status</th></tr></thead>
+      <tbody>${rows.map((i) => {
+        const c = carriers.find((c) => c.id === i.carrierId);
+        const s = shipments.find((s) => s.id === i.shipmentId);
+        return `<tr class="clickable" onclick="window.location.href='invoice-detail.html?id=${i.id}'">
+          <td>#${i.id}</td><td>${c ? c.name : "—"}</td><td>${s ? `${s.origin} → ${s.dest}` : "—"}</td>
+          <td>${formatDate(i.submittedAt)}</td><td class="num amt">${formatCurrency(i.totalAmount)}</td>
+          <td>${pillHtml(i.status)}</td>
+        </tr>`;
+      }).join("")}</tbody></table>`;
+  }
+  render();
+}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carrier Master — Northstar Freight Employee Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+<style>
+  tr.highlight-row { outline: 2px solid var(--accent); outline-offset: -2px; }
+</style>
+</head>
+<body data-portal="employee">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Employee Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="booking-requests.html"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
+      <a href="invoices.html"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1>Carrier Master</h1>
+      <div class="topbar-meta">Vendor Records</div>
+    </div>
+    <nav class="system-tabs">
+      <a href="shipments.html">🚛 Shipments (TMS)</a>
+      <a href="dock-events.html">🕒 Dock Events (DockTrak)</a>
+      <a href="carriers.html" class="active">🏷️ Carrier Master</a>
+      <a href="transcheck.html">🛡️ TransCheck</a>
+      <a href="policy-reference.html">📄 Policy Reference</a>
+    </nav>
+    <div class="content">
+      <p class="policy-box">This is Northstar's own vendor file — who we've contracted with and our own record of disputes.
+        For safety ratings and insurance status, see TransCheck.</p>
+      <div class="card">
+        <div class="card-header"><h2>Carrier Network</h2></div>
+        <div class="filter-bar" id="filter-bar"></div>
+        <div id="table-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("employee");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  await renderEmployeeBadges();
+
+  const highlightId = Number(new URLSearchParams(window.location.search).get("highlight")) || null;
+  const carriers = await NorthstarDB.all("carriers");
+  const invoices = await NorthstarDB.all("invoices");
+  let activeFilter = "ALL";
+
+  function disputesFor(c) { return invoices.filter((i) => i.carrierId === c.id && i.status === "ON_HOLD").length; }
+
+  function render() {
+    renderFilterPills("filter-bar", [
+      { value: "ALL", label: "All Carriers" },
+      { value: "RISK", label: "Elevated Risk" },
+      { value: "NORMAL", label: "Normal" },
+    ], activeFilter, (v) => { activeFilter = v; render(); });
+
+    const rows = carriers.filter((c) =>
+      activeFilter === "ALL" ? true : activeFilter === "RISK" ? c.elevatedRisk : !c.elevatedRisk
+    );
+
+    const wrap = document.getElementById("table-wrap");
+    wrap.innerHTML = rows.length === 0 ? `<div class="card-empty">No carriers match this filter.</div>` :
+      `<table><thead><tr>
+        <th>Carrier</th><th>MC Number</th><th>Active Since</th><th class="num">Disputed Invoices</th><th>Risk</th>
+      </tr></thead><tbody>${rows.map((c) => `<tr class="${c.id === highlightId ? 'highlight-row' : ''}">
+          <td>${c.name}</td><td>${c.mcNumber}</td><td>${formatDate(c.activeSince)}</td>
+          <td class="num">${disputesFor(c)}</td>
+          <td>${c.elevatedRisk ? pillHtml("REJECTED", "Elevated Risk") : `<span class="muted">Normal</span>`}</td>
+        </tr>`).join("")}</tbody></table>`;
+  }
+  render();
+}
+})();
+</script>
+</body>
+</html>

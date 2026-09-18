@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Shipment Request — Northstar Freight</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+<style>
+  .steps { display: flex; gap: 8px; margin-bottom: 22px; }
+  .step-chip { padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--ink-100); color: var(--ink-500); }
+  .step-chip.active { background: var(--accent); color: var(--accent-fg); }
+  .carrier-card { border: 2px solid var(--ink-200); border-radius: var(--radius-md); padding: 18px; cursor: pointer; background: var(--surface); }
+  .carrier-card:hover { border-color: var(--accent); }
+  .carrier-card.selected { border-color: var(--accent); background: var(--accent-weak); }
+  .carrier-card .name { font-weight: 700; font-size: 14.5px; margin-bottom: 4px; }
+  .carrier-card .mc { font-size: 11.5px; color: var(--ink-500); margin-bottom: 10px; }
+  .carrier-card .price { font-size: 22px; font-weight: 800; color: var(--ink-900); }
+  .carrier-card .transit { font-size: 12px; color: var(--ink-500); margin-top: 2px; }
+  .carrier-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin-bottom: 20px; }
+</style>
+</head>
+<body data-portal="shipper">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Shipper Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">📋</span> My Requests</a>
+      <a href="new-shipment.html" class="active"><span class="icon">➕</span> New Shipment Request</a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar"><h1>New Shipment Request</h1></div>
+    <div class="content" style="max-width: 900px;">
+
+      <div class="steps">
+        <div class="step-chip active" id="chip-1">1. Shipment Details</div>
+        <div class="step-chip" id="chip-2">2. Compare Carriers</div>
+      </div>
+
+      <!-- ------------------------------------------
+           STEP 1 — shipment details form
+           ------------------------------------------ -->
+      <div class="card" id="step-1">
+        <div class="card-header"><h2>Shipment Details</h2></div>
+        <div class="card-body">
+          <form id="details-form">
+            <div class="form-row">
+              <div class="field">
+                <label for="origin">Origin</label>
+                <select id="origin" required></select>
+              </div>
+              <div class="field">
+                <label for="dest">Destination</label>
+                <select id="dest" required></select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label for="weight">Weight (lbs)</label>
+                <input type="number" id="weight" min="100" max="45000" required placeholder="e.g. 18000">
+              </div>
+              <div class="field">
+                <label for="pickup-date">Requested Pickup Date</label>
+                <input type="date" id="pickup-date" required>
+              </div>
+            </div>
+            <div class="field">
+              <label for="goods">Goods Description</label>
+              <textarea id="goods" required placeholder="What's being shipped? e.g. Palletized retail merchandise, 22 pallets"></textarea>
+              <div class="hint">Include pallet count, packaging, and any handling requirements.</div>
+            </div>
+            <p class="error-text" id="details-error" style="display:none;">Please fill in every field, and choose two different cities.</p>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Continue to Carrier Comparison &rarr;</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ------------------------------------------
+           STEP 2 — carrier comparison + submit
+           ------------------------------------------ -->
+      <div class="card" id="step-2" style="display:none;">
+        <div class="card-header">
+          <div>
+            <h2>Compare Carriers</h2>
+            <div class="sub" id="lane-summary"></div>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="back-to-step1">&larr; Edit Details</button>
+        </div>
+        <div class="card-body">
+          <div class="carrier-grid" id="carrier-grid"></div>
+          <div class="form-actions">
+            <button class="btn btn-primary" id="submit-request-btn" disabled>Submit Shipment Request</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("shipper");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+
+  // ------------------------------------------
+  // HUB CITIES + ROUGH MILEAGE — the 10 lanes Northstar's network actually serves
+  // ------------------------------------------
+  const CITIES = ["Chicago, IL", "Indianapolis, IN", "Kansas City, MO", "Dallas, TX", "Atlanta, GA",
+    "Memphis, TN", "Columbus, OH", "Charlotte, NC", "Denver, CO", "Phoenix, AZ"];
+  const DISTANCES = {
+    "Chicago, IL|Indianapolis, IN": 185, "Chicago, IL|Kansas City, MO": 510, "Chicago, IL|Dallas, TX": 925,
+    "Chicago, IL|Atlanta, GA": 715, "Chicago, IL|Memphis, TN": 530, "Chicago, IL|Columbus, OH": 355,
+    "Chicago, IL|Charlotte, NC": 755, "Chicago, IL|Denver, CO": 1000, "Chicago, IL|Phoenix, AZ": 1730,
+    "Indianapolis, IN|Kansas City, MO": 500, "Indianapolis, IN|Dallas, TX": 860, "Indianapolis, IN|Atlanta, GA": 435,
+    "Indianapolis, IN|Memphis, TN": 470, "Indianapolis, IN|Columbus, OH": 175, "Indianapolis, IN|Charlotte, NC": 495,
+    "Indianapolis, IN|Denver, CO": 1055, "Indianapolis, IN|Phoenix, AZ": 1665,
+    "Kansas City, MO|Dallas, TX": 495, "Kansas City, MO|Atlanta, GA": 800, "Kansas City, MO|Memphis, TN": 450,
+    "Kansas City, MO|Columbus, OH": 655, "Kansas City, MO|Charlotte, NC": 940, "Kansas City, MO|Denver, CO": 600,
+    "Kansas City, MO|Phoenix, AZ": 1090,
+    "Dallas, TX|Atlanta, GA": 780, "Dallas, TX|Memphis, TN": 450, "Dallas, TX|Columbus, OH": 950,
+    "Dallas, TX|Charlotte, NC": 1000, "Dallas, TX|Denver, CO": 780, "Dallas, TX|Phoenix, AZ": 890,
+    "Atlanta, GA|Memphis, TN": 380, "Atlanta, GA|Columbus, OH": 550, "Atlanta, GA|Charlotte, NC": 245,
+    "Atlanta, GA|Denver, CO": 1400, "Atlanta, GA|Phoenix, AZ": 1800,
+    "Memphis, TN|Columbus, OH": 620, "Memphis, TN|Charlotte, NC": 620, "Memphis, TN|Denver, CO": 1040,
+    "Memphis, TN|Phoenix, AZ": 1360,
+    "Columbus, OH|Charlotte, NC": 425, "Columbus, OH|Denver, CO": 1155, "Columbus, OH|Phoenix, AZ": 1780,
+    "Charlotte, NC|Denver, CO": 1400, "Charlotte, NC|Phoenix, AZ": 1900,
+    "Denver, CO|Phoenix, AZ": 815,
+  };
+  function distanceBetween(a, b) {
+    if (a === b) return 0;
+    return DISTANCES[`${a}|${b}`] || DISTANCES[`${b}|${a}`] || 600;
+  }
+
+  const originSelect = document.getElementById("origin");
+  const destSelect = document.getElementById("dest");
+  CITIES.forEach((c) => {
+    originSelect.innerHTML += `<option value="${c}">${c}</option>`;
+    destSelect.innerHTML += `<option value="${c}">${c}</option>`;
+  });
+  destSelect.selectedIndex = 1;
+
+  let formData = null;
+  let selectedCarrierId = null;
+
+  // ------------------------------------------
+  // STEP 1 -> STEP 2 — validate details, compute quotes, render carrier cards
+  // ------------------------------------------
+  document.getElementById("details-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const origin = originSelect.value, dest = destSelect.value;
+    const weight = document.getElementById("weight").value;
+    const pickupDate = document.getElementById("pickup-date").value;
+    const goods = document.getElementById("goods").value.trim();
+    if (origin === dest || !weight || !pickupDate || !goods) {
+      document.getElementById("details-error").style.display = "block";
+      return;
+    }
+    document.getElementById("details-error").style.display = "none";
+    formData = { origin, dest, weightLbs: Number(weight), pickupDate, goodsDescription: goods };
+    await renderCarrierComparison();
+    document.getElementById("step-1").style.display = "none";
+    document.getElementById("step-2").style.display = "block";
+    document.getElementById("chip-1").classList.remove("active");
+    document.getElementById("chip-2").classList.add("active");
+  });
+  document.getElementById("back-to-step1").addEventListener("click", () => {
+    document.getElementById("step-1").style.display = "block";
+    document.getElementById("step-2").style.display = "none";
+    document.getElementById("chip-1").classList.add("active");
+    document.getElementById("chip-2").classList.remove("active");
+  });
+
+  // ------------------------------------------
+  // PRICING — a simple, deterministic distance + weight + per-carrier rate model
+  // ------------------------------------------
+  function quotePrice(carrier, miles, weightLbs) {
+    const base = 350 + miles * 1.35;
+    const weightAdj = weightLbs > 20000 ? 1.08 : 1.0;
+    return Math.round(base * carrier.rateFactor * weightAdj * 100) / 100;
+  }
+
+  async function renderCarrierComparison() {
+    const miles = distanceBetween(formData.origin, formData.dest);
+    document.getElementById("lane-summary").textContent =
+      `${formData.origin} → ${formData.dest} · ~${miles} mi · ${formData.weightLbs.toLocaleString()} lbs`;
+    const carriers = await NorthstarDB.all("carriers");
+    const grid = document.getElementById("carrier-grid");
+    grid.innerHTML = carriers.map((c) => {
+      const price = quotePrice(c, miles, formData.weightLbs);
+      const transitDays = Math.max(1, Math.round(miles / 500) + 1);
+      return `<div class="carrier-card" data-carrier-id="${c.id}" data-price="${price}">
+        <div class="name">${c.name}</div>
+        <div class="mc">${c.mcNumber} &middot; ${pillHtml(c.safetyRating)}</div>
+        <div class="price">${formatCurrency(price)}</div>
+        <div class="transit">Est. ${transitDays} day${transitDays > 1 ? "s" : ""} transit</div>
+      </div>`;
+    }).join("");
+    grid.querySelectorAll(".carrier-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        grid.querySelectorAll(".carrier-card").forEach((c) => c.classList.remove("selected"));
+        card.classList.add("selected");
+        selectedCarrierId = Number(card.dataset.carrierId);
+        document.getElementById("submit-request-btn").disabled = false;
+      });
+    });
+  }
+
+  // ------------------------------------------
+  // SUBMIT — write the shipmentRequests row
+  // ------------------------------------------
+  document.getElementById("submit-request-btn").addEventListener("click", async () => {
+    const selectedCard = document.querySelector(".carrier-card.selected");
+    const quotedPrice = Number(selectedCard.dataset.price);
+    const request = await NorthstarDB.insert("shipmentRequests", {
+      shipperId: user.id,
+      origin: formData.origin, dest: formData.dest, weightLbs: formData.weightLbs,
+      goodsDescription: formData.goodsDescription, pickupDate: formData.pickupDate,
+      carrierId: selectedCarrierId, quotedPrice: quotedPrice,
+      status: "PENDING_REVIEW", employeeNote: "",
+    });
+    toast("Shipment request submitted for review.");
+    window.location.href = `request-detail.html?id=${request.id}`;
+  });
+}
+})();
+</script>
+</body>
+</html>

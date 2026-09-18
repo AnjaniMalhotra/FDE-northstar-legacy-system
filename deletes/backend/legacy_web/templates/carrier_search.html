@@ -1,0 +1,37 @@
+<!-- ------------------------------------------
+     CARRIER MASTER — Carrier Search Page
+     ------------------------------------------ -->
+{% extends "base.html" %}
+{% block title %}Carrier Management — Master Directory{% endblock %}
+{% block css_file %}carriers.css{% endblock %}
+{% block system_name %}CARRIER MANAGEMENT{% endblock %}
+{% block system_tag %}Vendor Master Registry &middot; Northstar Freight{% endblock %}
+{% block breadcrumb %}<a href="/">Northstar Intranet</a> &rsaquo; Carrier Management{% endblock %}
+
+{% block content %}
+<!-- ------------------------------------------
+     PAGE HEADER & LOOKUP FORM
+     ------------------------------------------ -->
+<div class="page-header">
+    <div>
+        <h1>Carrier Master Registry</h1>
+        <p>Master vendor profiles, historic volume &amp; payment dispute metrics</p>
+    </div>
+</div>
+
+<section class="panel">
+    <div class="panel-header"><h2>Carrier ID Direct Lookup</h2></div>
+    <form method="get" action="/carriers/carrier" class="inline-form">
+        <div>
+            <label for="carrier_id">Carrier ID</label>
+            <input type="number" id="carrier_id" name="carrier_id" value="3" required style="width: 220px;">
+        </div>
+        <button type="submit" class="btn primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Search Vendor Record
+        </button>
+    </form>
+</section>
+{% endblock %}
+
+{% block footer %}Northstar Freight Carrier Management Portal &copy; 2026{% endblock %}

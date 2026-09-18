@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dock Events (DockTrak) — Northstar Freight Employee Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="employee">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Employee Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="booking-requests.html"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
+      <a href="invoices.html"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1>Dock Events</h1>
+      <div class="topbar-meta">Terminal Operations &middot; DockTrak</div>
+    </div>
+    <nav class="system-tabs">
+      <a href="shipments.html">🚛 Shipments (TMS)</a>
+      <a href="dock-events.html" class="active">🕒 Dock Events (DockTrak)</a>
+      <a href="carriers.html">🏷️ Carrier Master</a>
+      <a href="transcheck.html">🛡️ TransCheck</a>
+      <a href="policy-reference.html">📄 Policy Reference</a>
+    </nav>
+    <div class="content">
+      <p class="policy-box">This is the <strong>real</strong> arrival/departure log, captured automatically from carrier telematics/geofencing
+        the moment a shipment is marked delivered — no one at Northstar can type or edit an entry here. It's the ground truth a billed
+        detention charge should be checked against; nothing on the Invoices screen pulls from here automatically, so you still have to compare by hand.</p>
+
+      <div class="card">
+        <div class="card-header"><h2>Event Log</h2></div>
+        <div class="filter-bar">
+          <button type="button" class="filter-pill active" id="filter-all">All Shipments</button>
+          <select id="shipment-filter" class="filter-search"><option value="">Filter by shipment…</option></select>
+        </div>
+        <div id="table-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("employee");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  await renderEmployeeBadges();
+
+  const shipments = await NorthstarDB.all("shipments");
+  const select = document.getElementById("shipment-filter");
+  shipments.forEach((s) => { select.innerHTML += `<option value="${s.id}">#${s.id} — ${s.origin} → ${s.dest}</option>`; });
+
+  let activeShipmentId = "";
+
+  async function renderTable() {
+    let events = (await NorthstarDB.all("dockEvents")).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    if (activeShipmentId) events = events.filter((e) => e.shipmentId === Number(activeShipmentId));
+
+    const wrap = document.getElementById("table-wrap");
+    wrap.innerHTML = events.length === 0 ? `<div class="card-empty">No dock events for this filter yet.</div>` :
+      `<table><thead><tr><th>Shipment</th><th>Event</th><th>Timestamp</th></tr></thead>
+      <tbody>${events.map((e) => {
+        const s = shipments.find((s) => s.id === e.shipmentId);
+        return `<tr>
+          <td>#${e.shipmentId} — ${s ? `${s.origin} → ${s.dest}` : "—"}</td>
+          <td>${pillHtml(e.type === "ARRIVAL" ? "SCHEDULED" : "AT_DOCK", e.type)}</td>
+          <td>${formatDateTime(e.timestamp)}</td>
+        </tr>`;
+      }).join("")}</tbody></table>`;
+  }
+
+  document.getElementById("filter-all").addEventListener("click", async () => {
+    activeShipmentId = "";
+    select.value = "";
+    document.getElementById("filter-all").classList.add("active");
+    await renderTable();
+  });
+  select.addEventListener("change", async () => {
+    activeShipmentId = select.value;
+    document.getElementById("filter-all").classList.toggle("active", !activeShipmentId);
+    await renderTable();
+  });
+
+  await renderTable();
+}
+})();
+</script>
+</body>
+</html>

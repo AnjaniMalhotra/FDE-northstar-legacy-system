@@ -1,0 +1,37 @@
+<!-- ------------------------------------------
+     NORTHSTAR TMS — Load Search Page
+     ------------------------------------------ -->
+{% extends "base.html" %}
+{% block title %}Northstar TMS — Load Booking Lookup{% endblock %}
+{% block css_file %}tms.css{% endblock %}
+{% block system_name %}NORTHSTAR TMS{% endblock %}
+{% block system_tag %}Transportation Management &middot; Dispatch Console{% endblock %}
+{% block breadcrumb %}<a href="/">Northstar Intranet</a> &rsaquo; Transportation Management{% endblock %}
+
+{% block content %}
+<!-- ------------------------------------------
+     PAGE HEADER & LOOKUP FORM
+     ------------------------------------------ -->
+<div class="page-header">
+    <div>
+        <h1>Transportation Management (TMS)</h1>
+        <p>Contracted load bookings, agreed linehaul rates &amp; free detention terms</p>
+    </div>
+</div>
+
+<section class="panel">
+    <div class="panel-header"><h2>Contracted Load Lookup</h2></div>
+    <form method="get" action="/tms/load" class="inline-form">
+        <div>
+            <label for="load_id">Load ID</label>
+            <input type="number" id="load_id" name="load_id" value="98" required style="width: 220px;">
+        </div>
+        <button type="submit" class="btn primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Lookup Load Terms
+        </button>
+    </form>
+</section>
+{% endblock %}
+
+{% block footer %}Northstar Freight Transportation Management System &copy; 2026{% endblock %}

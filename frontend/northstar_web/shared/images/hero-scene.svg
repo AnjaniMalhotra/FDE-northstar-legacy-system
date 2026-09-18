@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#171310"/>
+      <stop offset="45%" stop-color="#3a2a1f"/>
+      <stop offset="75%" stop-color="#8a4a2b"/>
+      <stop offset="100%" stop-color="#c76a35"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f7b06a" stop-opacity="0.95"/>
+      <stop offset="55%" stop-color="#e0803f" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#e0803f" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#241d17"/>
+      <stop offset="100%" stop-color="#0c0a08"/>
+    </linearGradient>
+    <linearGradient id="scrim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0f0d0b" stop-opacity="0.72"/>
+      <stop offset="42%" stop-color="#0f0d0b" stop-opacity="0.38"/>
+      <stop offset="72%" stop-color="#0f0d0b" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#0f0d0b" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="truckBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2a221c"/>
+      <stop offset="100%" stop-color="#0a0806"/>
+    </linearGradient>
+  </defs>
+
+  <!-- SKY -->
+  <rect width="1600" height="800" fill="url(#sky)"/>
+  <circle cx="1180" cy="470" r="300" fill="url(#sun)"/>
+
+  <!-- DISTANT HILLS -->
+  <path d="M0,540 L120,510 L260,530 L420,495 L600,525 L820,500 L1020,530 L1240,505 L1420,525 L1600,510 L1600,560 L0,560 Z" fill="#2b2018" opacity="0.85"/>
+  <path d="M0,560 L200,545 L460,565 L740,540 L980,565 L1260,545 L1600,562 L1600,590 L0,590 Z" fill="#1c1610" opacity="0.9"/>
+
+  <!-- ROAD -->
+  <polygon points="380,800 1220,800 900,545 700,545" fill="url(#road)"/>
+  <polygon points="700,545 900,545 860,558 740,558" fill="#c76a35" opacity="0.25"/>
+  <!-- center line dashes, tapering toward vanishing point -->
+  <g fill="#e0a56a" opacity="0.55">
+    <rect x="793" y="560" width="14" height="26" transform="skewX(-4)"/>
+    <rect x="783" y="608" width="18" height="34"/>
+    <rect x="770" y="668" width="24" height="42"/>
+    <rect x="752" y="742" width="32" height="52"/>
+  </g>
+
+  <!-- TRUCK SILHOUETTE (driving toward viewer, right-of-center) -->
+  <g transform="translate(980,430)">
+    <!-- trailer -->
+    <rect x="0" y="40" width="330" height="150" rx="6" fill="url(#truckBody)"/>
+    <rect x="0" y="40" width="330" height="10" fill="#4a3a2c" opacity="0.5"/>
+    <!-- cab -->
+    <path d="M330,90 h95 a18,18 0 0 1 18,18 v82 h-113 z" fill="url(#truckBody)"/>
+    <path d="M345,100 h60 a10,10 0 0 1 10,10 v34 h-70 z" fill="#5a4632" opacity="0.55"/>
+    <!-- bumper glow -->
+    <rect x="425" y="150" width="16" height="34" rx="3" fill="#f7b06a" opacity="0.85"/>
+    <!-- wheels -->
+    <circle cx="55" cy="192" r="30" fill="#080604"/>
+    <circle cx="55" cy="192" r="12" fill="#2a221c"/>
+    <circle cx="210" cy="192" r="30" fill="#080604"/>
+    <circle cx="210" cy="192" r="12" fill="#2a221c"/>
+    <circle cx="395" cy="192" r="30" fill="#080604"/>
+    <circle cx="395" cy="192" r="12" fill="#2a221c"/>
+  </g>
+
+  <!-- reflection glow under truck -->
+  <ellipse cx="1180" cy="640" rx="260" ry="22" fill="#000000" opacity="0.35"/>
+
+  <!-- LEFT-SIDE SCRIM for headline legibility -->
+  <rect width="1600" height="800" fill="url(#scrim)"/>
+</svg>

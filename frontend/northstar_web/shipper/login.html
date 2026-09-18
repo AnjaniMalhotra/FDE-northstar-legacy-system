@@ -1,0 +1,63 @@
+<!-- ------------------------------------------
+     NORTHSTAR FREIGHT — Shipper Portal Login
+     ------------------------------------------ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shipper Log In — Northstar Freight</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="shipper">
+
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="auth-eyebrow">Shipper Access</div>
+    <h1 class="auth-heading">Sign in</h1>
+    <p class="auth-sub">Shipper Portal &mdash; book, manage, and track truckload shipments.</p>
+
+    <form id="login-form">
+      <div class="field">
+        <label for="email">Work Email</label>
+        <input type="email" id="email" required autocomplete="username" placeholder="shipper@acmemfg.com">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" required autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <p class="error-text" id="error-msg" style="display:none;">Incorrect email or password.</p>
+      <button type="submit" class="btn btn-primary btn-block">Log In &rarr;</button>
+    </form>
+
+    <div class="demo-creds">
+      <strong>Demo Credentials:</strong><br>
+      Email: <code>shipper@acmemfg.com</code><br>
+      Password: <code>demo123</code>
+      <button type="button" class="btn btn-secondary btn-sm btn-block" style="margin-top: 8px;" onclick="document.getElementById('email').value='shipper@acmemfg.com'; document.getElementById('password').value='demo123';">
+        Auto-fill Demo Credentials
+      </button>
+    </div>
+    <p class="auth-back"><a href="../index.html">&larr; Back to Northstar Freight Homepage</a></p>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script>
+document.getElementById("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const user = await NorthstarAuth.login("shipper", email, password);
+  if (user) {
+    window.location.href = "dashboard.html";
+  } else {
+    document.getElementById("error-msg").style.display = "block";
+  }
+});
+</script>
+</body>
+</html>

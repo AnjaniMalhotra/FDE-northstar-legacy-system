@@ -1,0 +1,14 @@
+/* ------------------------------------------
+   PRINT STYLESHEET — used only by carrier/invoice-view.html
+   "Download PDF" = the browser's own print-to-PDF, no library needed.
+   Everything except the .invoice-sheet is hidden when printing.
+   ------------------------------------------ */
+@media print {
+  body * { visibility: hidden; }
+  .invoice-sheet, .invoice-sheet * { visibility: visible; }
+  .invoice-sheet {
+    position: absolute; top: 0; left: 0; width: 100%;
+    box-shadow: none; border: none; padding: 0;
+  }
+  .no-print { display: none !important; }
+}

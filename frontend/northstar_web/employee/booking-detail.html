@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Booking Request Detail — Northstar Freight Employee Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="employee">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Employee Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="booking-requests.html" class="active"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
+      <a href="invoices.html"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar"><h1>Booking Request</h1></div>
+    <nav class="system-tabs">
+      <a href="shipments.html">🚛 Shipments (TMS)</a>
+      <a href="dock-events.html">🕒 Dock Events (DockTrak)</a>
+      <a href="carriers.html">🏷️ Carrier Master</a>
+      <a href="transcheck.html">🛡️ TransCheck</a>
+      <a href="policy-reference.html">📄 Policy Reference</a>
+    </nav>
+    <div class="content">
+      <div class="breadcrumb"><a href="booking-requests.html">Booking Requests</a> &rsaquo; <span id="crumb"></span></div>
+      <div id="page-body"></div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("employee");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  await renderEmployeeBadges();
+
+  const id = Number(new URLSearchParams(window.location.search).get("id"));
+  const request = await NorthstarDB.find("shipmentRequests", id);
+  const body = document.getElementById("page-body");
+  const canDecide = user.role === "OPERATIONS" || user.role === "ADMIN";
+  const shipper = request ? await NorthstarDB.find("users", request.shipperId) : null;
+  const carrier = request ? await NorthstarDB.find("carriers", request.carrierId) : null;
+
+  function render() {
+    if (!request) { body.innerHTML = `<div class="card"><div class="card-empty">Request not found.</div></div>`; return; }
+    document.getElementById("crumb").textContent = `Request #${request.id}`;
+
+    body.innerHTML = `
+      <div class="page-header">
+        <div class="title-block">
+          <h1>${request.origin} &rarr; ${request.dest}</h1>
+          <p>Request #${request.id} &middot; ${shipper ? shipper.companyName : "—"}</p>
+        </div>
+        ${pillHtml(request.status)}
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>Request Details</h2></div>
+        <div class="card-body">
+          <table><tbody>
+            <tr><td class="muted">Shipper</td><td>${shipper ? `${shipper.companyName} (${shipper.name})` : "—"}</td></tr>
+            <tr><td class="muted">Weight</td><td>${request.weightLbs.toLocaleString()} lbs</td></tr>
+            <tr><td class="muted">Goods</td><td>${request.goodsDescription}</td></tr>
+            <tr><td class="muted">Requested Pickup</td><td>${formatDate(request.pickupDate)}</td></tr>
+            <tr><td class="muted">Carrier Requested</td><td>${carrier ? carrier.name : "—"}</td></tr>
+            <tr><td class="muted">Quoted Price</td><td class="amt">${formatCurrency(request.quotedPrice)}</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+
+      <p class="helper-notice" style="margin-top:18px;">Nothing here is checked automatically — use the tabs above to confirm the carrier's
+        standing (Carrier Master) and there's no scheduling conflict (Shipments) before deciding.</p>
+
+      <div class="card">
+        <div class="card-header"><h2>Decision</h2></div>
+        <div class="card-body">
+          ${request.status !== "PENDING_REVIEW"
+            ? `<p class="muted">Decision already recorded: ${pillHtml(request.status)}${request.employeeNote ? ` — "${request.employeeNote}"` : ""}</p>`
+            : canDecide
+              ? `<div class="form-actions" style="margin-top:0;">
+                   <button class="btn btn-danger" id="reject-btn">Reject Request</button>
+                   <button class="btn btn-primary" id="approve-btn">Approve &amp; Book Shipment</button>
+                 </div>`
+              : `<p class="helper-notice">Only Operations (or an Admin) can approve or reject booking requests. You're logged in as ${user.role.replace("_"," ")}.</p>`
+          }
+        </div>
+      </div>`;
+
+    if (request.status === "PENDING_REVIEW" && canDecide) {
+      document.getElementById("approve-btn").addEventListener("click", () => {
+        ActionModal.open({
+          title: "Approve Booking Request",
+          desc: `This books shipment #${request.id} with ${carrier.name} at ${formatCurrency(request.quotedPrice)} and notifies the carrier.`,
+          noteRequired: false, noteLabel: "Note",
+          confirmLabel: "Approve & Book", confirmClass: "btn-primary",
+          onConfirm: async (note) => {
+            await NorthstarDB.update("shipmentRequests", request.id, { status: "APPROVED", employeeNote: note || "Approved." });
+            const pickupAppt = request.pickupDate + "T09:00";
+            const deliveryAppt = toNaiveIso(new Date(new Date(pickupAppt).getTime() + 24 * 3600 * 1000));
+            await NorthstarDB.insert("shipments", {
+              requestId: request.id, carrierId: carrier.id, origin: request.origin, dest: request.dest,
+              weightLbs: request.weightLbs, goodsDescription: request.goodsDescription,
+              agreedRate: request.quotedPrice, detentionFreeHours: carrier.detentionFreeHours,
+              detentionRatePerHour: carrier.detentionRatePerHour,
+              pickupAppt: pickupAppt, deliveryAppt: deliveryAppt, status: "SCHEDULED",
+            });
+            toast("Booking approved and shipment created.");
+            window.location.reload();
+          },
+        });
+      });
+      document.getElementById("reject-btn").addEventListener("click", () => {
+        ActionModal.open({
+          title: "Reject Booking Request",
+          desc: "The shipper will see this note explaining why the request was rejected.",
+          noteRequired: true, noteLabel: "Reason for rejection",
+          confirmLabel: "Reject Request", confirmClass: "btn-danger",
+          onConfirm: async (note) => {
+            await NorthstarDB.update("shipmentRequests", request.id, { status: "REJECTED", employeeNote: note });
+            toast("Request rejected.", "bad");
+            window.location.reload();
+          },
+        });
+      });
+    }
+  }
+  render();
+}
+})();
+</script>
+</body>
+</html>

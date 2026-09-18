@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice — Northstar Freight Carrier Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+<link rel="stylesheet" href="../shared/css/print.css">
+<style>
+  .invoice-sheet { background: var(--surface); border: 1px solid var(--ink-200); border-radius: var(--radius-md); padding: 40px; max-width: 720px; }
+  .invoice-sheet .inv-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; }
+  .invoice-sheet .logo-img-invoice { height: 42px; width: auto; display: block; }
+  .invoice-sheet .inv-meta { text-align: right; font-size: 12.5px; color: var(--ink-500); }
+  .invoice-sheet .bill-cols { display: flex; gap: 40px; margin-bottom: 28px; }
+  .invoice-sheet .bill-cols h4 { font-size: 11px; text-transform: uppercase; color: var(--ink-500); letter-spacing: 0.05em; margin-bottom: 6px; }
+  .invoice-sheet table { margin-bottom: 20px; }
+  .invoice-sheet th { background: var(--ink-100); }
+  .invoice-sheet .grand-total td { font-size: 16px; font-weight: 800; border-top: 2px solid var(--ink-900); }
+</style>
+</head>
+<body data-portal="carrier">
+
+<div class="app-shell">
+  <aside class="sidebar no-print">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Carrier Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="shipments.html" class="active"><span class="icon">🚛</span> My Shipments</a>
+      <a href="disputes.html"><span class="icon">⚠️</span> Disputes / Revisions <span class="badge-count" id="badge-disputes" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar no-print"><h1>Invoice</h1></div>
+    <div class="content">
+      <div class="breadcrumb no-print"><a href="shipments.html">My Shipments</a> &rsaquo; <span id="crumb"></span></div>
+      <div id="page-body"></div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("carrier");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  await renderCarrierBadges(user.carrierId);
+
+  const id = Number(new URLSearchParams(window.location.search).get("id"));
+  const invoice = await NorthstarDB.find("invoices", id);
+  const body = document.getElementById("page-body");
+
+  if (!invoice || invoice.carrierId !== user.carrierId) {
+    body.innerHTML = `<div class="card"><div class="card-empty">Invoice not found.</div></div>`;
+  } else {
+    document.getElementById("crumb").textContent = `Invoice #${invoice.id}`;
+    const shipment = await NorthstarDB.find("shipments", invoice.shipmentId);
+    const carrier = await NorthstarDB.find("carriers", invoice.carrierId);
+    const lastHold = invoice.status === "ON_HOLD" ? (invoice.decisions || []).filter((d) => d.decision === "ON_HOLD").slice(-1)[0] : null;
+
+    body.innerHTML = `
+      <div class="no-print" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        ${pillHtml(invoice.status)}
+        <div style="display:flex; gap:10px;">
+          ${invoice.status === "ON_HOLD" ? `<a class="btn btn-danger" href="invoice-form.html?reviseId=${invoice.id}">Revise &amp; Resubmit &rarr;</a>` : ""}
+          <button class="btn btn-secondary" onclick="window.print()">⬇ Download PDF</button>
+        </div>
+      </div>
+
+      ${lastHold ? `<div class="helper-notice no-print"><strong>On hold — Northstar's note:</strong> ${lastHold.note}</div>` : ""}
+
+      <div class="invoice-sheet">
+        <div class="inv-head">
+          <div>
+            <div class="inv-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img-invoice"></div>
+            <div class="muted" style="font-size:12px;">Accounts Payable &middot; Invoice Processing</div>
+          </div>
+          <div class="inv-meta">
+            <div><strong>Invoice #${invoice.id}</strong></div>
+            <div>Submitted ${formatDate(invoice.submittedAt)}</div>
+            <div>Status: ${invoice.status.replace("_", " ")}</div>
+          </div>
+        </div>
+
+        <div class="bill-cols">
+          <div>
+            <h4>From</h4>
+            <div>${carrier.name}</div>
+            <div class="muted">${carrier.mcNumber}</div>
+          </div>
+          <div>
+            <h4>Bill To</h4>
+            <div>Northstar Freight</div>
+            <div class="muted">Accounts Payable</div>
+          </div>
+          <div>
+            <h4>Shipment</h4>
+            <div>#${shipment.id} &middot; ${shipment.origin} &rarr; ${shipment.dest}</div>
+            <div class="muted">Delivered ${formatDate(shipment.deliveryAppt)}</div>
+          </div>
+        </div>
+
+        <table>
+          <thead><tr><th>Line Item</th><th class="num">Amount</th></tr></thead>
+          <tbody>
+            <tr><td>Linehaul</td><td class="num amt">${formatCurrency(invoice.linehaulAmount)}</td></tr>
+            <tr><td>Detention (${invoice.detentionHoursBilled} hrs billed, ${shipment.detentionFreeHours} hrs free)</td><td class="num amt">${formatCurrency(invoice.detentionAmountBilled)}</td></tr>
+            <tr><td>Fuel Surcharge</td><td class="num amt">${formatCurrency(invoice.fuelSurcharge)}</td></tr>
+            <tr class="grand-total"><td>Total Due</td><td class="num amt">${formatCurrency(invoice.totalAmount)}</td></tr>
+          </tbody>
+        </table>
+      </div>`;
+  }
+}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!-- ------------------------------------------
+     NORTHSTAR FREIGHT — Portal Access (Log In / Request Access)
+     Public entry point for SHIPPERS and CARRIERS only.
+     Employee/staff login is intentionally not linked from here or
+     anywhere else on the public site — see employee/login.html.
+     ------------------------------------------ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal Access — Northstar Freight</title>
+<link rel="stylesheet" href="shared/css/tokens.css">
+<link rel="stylesheet" href="shared/css/base.css">
+</head>
+<body>
+
+<!-- ------------------------------------------
+     HEADER NAVIGATION BAR
+     ------------------------------------------ -->
+<nav class="site-header">
+  <a class="site-logo" href="index.html"><img src="shared/images/logo.png" alt="Northstar Freight" class="logo-img"></a>
+  <div class="site-nav">
+    <a href="services.html">Services</a>
+    <a href="industries.html">Industries</a>
+    <a href="about.html">About</a>
+    <a href="contact.html">Contact</a>
+    <a class="btn-orange-pill" href="portal-access.html" style="padding: 8px 20px; font-size: 13px; margin-left: 8px;">Portal Access &rarr;</a>
+  </div>
+</nav>
+
+<!-- ------------------------------------------
+     PAGE BANNER
+     ------------------------------------------ -->
+<div class="page-banner reveal">
+  <div class="eyebrow">Account Access</div>
+  <h1>Log in, or request access</h1>
+  <p>Existing shippers and carriers can log in to their portal below. New to Northstar Freight? Request access and our onboarding team will set up your account.</p>
+</div>
+
+<!-- ------------------------------------------
+     LOG IN / REQUEST ACCESS TOGGLE
+     ------------------------------------------ -->
+<section class="site-section" style="padding-top: 10px;">
+  <div class="access-tabs reveal">
+    <button type="button" class="access-tab active" data-tab="login">Log In</button>
+    <button type="button" class="access-tab" data-tab="request">Request Access</button>
+  </div>
+
+  <!-- Log In panel: shipper + carrier only, no employee/staff login here -->
+  <div class="access-panel active" data-panel="login">
+    <div class="info-grid reveal-stagger reveal" style="max-width: 720px; margin: 0 auto; grid-template-columns: repeat(2, 1fr);">
+      <div class="info-card reveal-child" style="text-align: center;">
+        <div class="icon-badge" style="margin: 0 auto 14px;">📦</div>
+        <h3>Shipper Portal</h3>
+        <p>Book truckload capacity, track shipments, and review invoices.</p>
+        <a class="btn btn-primary btn-block" href="shipper/login.html" style="margin-top: 16px;">Log In &rarr;</a>
+      </div>
+      <div class="info-card reveal-child" style="text-align: center;">
+        <div class="icon-badge" style="margin: 0 auto 14px;">🚚</div>
+        <h3>Carrier Portal</h3>
+        <p>Accept loads, log delivery events, and manage settlement.</p>
+        <a class="btn btn-primary btn-block" href="carrier/login.html" style="margin-top: 16px;">Log In &rarr;</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Request Access panel: onboarding inquiry, not an instant self-serve account -->
+  <div class="access-panel" data-panel="request">
+    <div class="info-card" style="max-width: 480px; margin: 0 auto;">
+      <h3>Request Portal Access</h3>
+      <p>Enterprise accounts are set up by our onboarding team after a quick verification call.</p>
+      <form id="access-form" onsubmit="event.preventDefault(); alert('Thank you. Our onboarding team will reach out within 1 business day to set up your account.'); this.reset();" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--ink-100);">
+        <div class="field">
+          <label for="company">Company Name</label>
+          <input type="text" id="company" required placeholder="e.g. Acme Manufacturing">
+        </div>
+        <div class="field">
+          <label for="req-email">Work Email</label>
+          <input type="email" id="req-email" required placeholder="e.g. dana@acmemfg.com">
+        </div>
+        <div class="field">
+          <label for="req-type">I am a</label>
+          <select id="req-type">
+            <option value="shipper">Shipper — I need to book freight</option>
+            <option value="carrier">Carrier — I want to haul loads</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top: 6px;">Request Access &rarr;</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------
+     SITE FOOTER
+     ------------------------------------------ -->
+<footer class="site-footer">
+  <div class="footer-grid">
+    <div class="footer-col footer-brand">
+      <a class="site-logo" href="index.html"><img src="shared/images/logo.png" alt="Northstar Freight" class="logo-img"></a>
+      <p>Enterprise truckload freight brokerage connecting shippers with a vetted carrier network across major U.S. hub markets.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Services</h4>
+      <ul>
+        <li><a href="services.html">Truckload Brokerage</a></li>
+        <li><a href="services.html">Carrier Vetting</a></li>
+        <li><a href="services.html">Freight Audit &amp; AP</a></li>
+        <li><a href="services.html">Terminal Tracking</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Industries</h4>
+      <ul>
+        <li><a href="industries.html">Manufacturing</a></li>
+        <li><a href="industries.html">Food &amp; Beverage</a></li>
+        <li><a href="industries.html">Retail &amp; Consumer</a></li>
+        <li><a href="industries.html">Automotive Parts</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Navigation</h4>
+      <ul>
+        <li><a href="about.html">About Northstar</a></li>
+        <li><a href="contact.html">Contact Team</a></li>
+        <li><a href="portal-access.html">Portal Access</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Headquarters</h4>
+      <ul>
+        <li><p>1420 Freightway Blvd<br>Kansas City, MO 64105</p></li>
+        <li><a href="tel:+18165550142">+1 (816) 555-0142</a></li>
+        <li><a href="mailto:hello@northstarfreight.com">hello@northstarfreight.com</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-legal">
+    <p>&copy; 2026 Northstar Freight Systems. All rights reserved.</p>
+    <div class="footer-legal-links">
+      <a href="terms.html">Terms of Service</a>
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="sitemap.html">Sitemap</a>
+    </div>
+  </div>
+</footer>
+
+<script src="shared/js/reveal.js"></script>
+<script>
+document.querySelectorAll(".access-tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".access-tab").forEach((t) => t.classList.remove("active"));
+    document.querySelectorAll(".access-panel").forEach((p) => p.classList.remove("active"));
+    tab.classList.add("active");
+    document.querySelector(`.access-panel[data-panel="${tab.dataset.tab}"]`).classList.add("active");
+  });
+});
+</script>
+</body>
+</html>

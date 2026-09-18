@@ -1,0 +1,14 @@
+# Legacy system only — no AI/POC dependencies. Trimmed from the parent
+# project's requirements.txt, which also serves the separate AI copilot.
+
+# Data pipeline — synthetic legacy database (scripts/generate_synthetic_data.py, load_legacy_data.py)
+pandas
+SQLAlchemy
+psycopg[binary]
+python-dotenv
+
+# Web infra — serves legacy_web/ (server-rendered) and northstar_web_api/ (JSON API)
+fastapi
+uvicorn
+jinja2                  # server-rendered HTML templates (legacy_web/ only)
+python-multipart        # required by FastAPI/Starlette to parse HTML form submissions

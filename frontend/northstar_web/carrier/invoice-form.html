@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create Invoice — Northstar Freight Carrier Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="carrier">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Carrier Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="shipments.html" class="active"><span class="icon">🚛</span> My Shipments</a>
+      <a href="disputes.html"><span class="icon">⚠️</span> Disputes / Revisions <span class="badge-count" id="badge-disputes" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar"><h1 id="page-title">Create Invoice</h1></div>
+    <div class="content" style="max-width: 700px;">
+      <div id="hold-notice"></div>
+      <div class="card">
+        <div class="card-header"><div><h2>Invoice Template</h2><div class="sub" id="shipment-sub"></div></div></div>
+        <div class="card-body">
+          <form id="invoice-form">
+            <div class="form-row">
+              <div class="field">
+                <label for="linehaul">Linehaul Amount</label>
+                <input type="number" id="linehaul" step="0.01" min="0" required>
+              </div>
+              <div class="field">
+                <label for="fuel">Fuel Surcharge</label>
+                <input type="number" id="fuel" step="0.01" min="0" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label for="detention-hours">Detention Hours Billed</label>
+                <input type="number" id="detention-hours" step="0.01" min="0" value="0" required>
+                <div class="hint" id="detention-hint"></div>
+              </div>
+              <div class="field">
+                <label>Detention Amount (calculated)</label>
+                <input type="text" id="detention-amount" disabled>
+              </div>
+            </div>
+            <div class="field" id="revision-note-field" style="display:none;">
+              <label for="revision-note">What did you change, and why (required for a resubmission)</label>
+              <textarea id="revision-note"></textarea>
+            </div>
+            <div class="field" id="notes-field">
+              <label for="notes">Notes (optional)</label>
+              <textarea id="notes"></textarea>
+            </div>
+            <div class="divider"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:15px; font-weight:700;">Total: <span id="total-preview">$0.00</span></span>
+              <button type="submit" class="btn btn-primary" id="submit-btn">Submit Invoice</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("carrier");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  await renderCarrierBadges(user.carrierId);
+
+  const params = new URLSearchParams(window.location.search);
+  const shipmentIdParam = Number(params.get("shipmentId"));
+  const reviseIdParam = Number(params.get("reviseId"));
+  const isRevision = Boolean(reviseIdParam);
+
+  let shipment, existingInvoice;
+  if (isRevision) {
+    existingInvoice = await NorthstarDB.find("invoices", reviseIdParam);
+    shipment = existingInvoice ? await NorthstarDB.find("shipments", existingInvoice.shipmentId) : null;
+  } else {
+    shipment = await NorthstarDB.find("shipments", shipmentIdParam);
+  }
+
+  if (!shipment || shipment.carrierId !== user.carrierId) {
+    document.querySelector(".content").innerHTML = `<div class="card"><div class="card-empty">Shipment not found.</div></div>`;
+  } else {
+    document.getElementById("shipment-sub").textContent = `Shipment #${shipment.id} — ${shipment.origin} → ${shipment.dest}`;
+    document.getElementById("detention-hint").textContent =
+      `${shipment.detentionFreeHours} hrs free, then ${formatCurrency(shipment.detentionRatePerHour)}/hr`;
+
+    if (isRevision) {
+      document.getElementById("page-title").textContent = "Revise Invoice";
+      document.getElementById("submit-btn").textContent = "Resubmit Invoice";
+      document.getElementById("revision-note-field").style.display = "block";
+      document.getElementById("linehaul").value = existingInvoice.linehaulAmount;
+      document.getElementById("fuel").value = existingInvoice.fuelSurcharge;
+      document.getElementById("detention-hours").value = existingInvoice.detentionHoursBilled;
+      document.getElementById("notes").value = "";
+      const lastHold = (existingInvoice.decisions || []).filter((d) => d.decision === "ON_HOLD").slice(-1)[0];
+      if (lastHold) {
+        document.getElementById("hold-notice").innerHTML =
+          `<div class="helper-notice"><strong>Northstar's note:</strong> ${lastHold.note}</div>`;
+      }
+    } else {
+      document.getElementById("linehaul").value = shipment.agreedRate;
+      document.getElementById("fuel").value = Math.round(shipment.agreedRate * 0.12 * 100) / 100;
+    }
+
+    function recalc() {
+      const hours = Number(document.getElementById("detention-hours").value) || 0;
+      const billableHours = Math.max(0, hours - shipment.detentionFreeHours);
+      const detentionAmount = Math.round(billableHours * shipment.detentionRatePerHour * 100) / 100;
+      document.getElementById("detention-amount").value = formatCurrency(detentionAmount);
+      const linehaul = Number(document.getElementById("linehaul").value) || 0;
+      const fuel = Number(document.getElementById("fuel").value) || 0;
+      document.getElementById("total-preview").textContent = formatCurrency(linehaul + fuel + detentionAmount);
+      return detentionAmount;
+    }
+    ["linehaul", "fuel", "detention-hours"].forEach((id) => document.getElementById(id).addEventListener("input", recalc));
+    recalc();
+
+    document.getElementById("invoice-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (isRevision && !document.getElementById("revision-note").value.trim()) {
+        toast("Please explain what you changed before resubmitting.", "bad");
+        return;
+      }
+      const detentionAmount = recalc();
+      const linehaul = Number(document.getElementById("linehaul").value);
+      const fuel = Number(document.getElementById("fuel").value);
+      const hours = Number(document.getElementById("detention-hours").value);
+      const total = Math.round((linehaul + fuel + detentionAmount) * 100) / 100;
+
+      if (isRevision) {
+        const decisions = (existingInvoice.decisions || []).concat([{
+          decidedBy: user.name, decision: "REVISED", note: document.getElementById("revision-note").value.trim(), at: new Date().toISOString(),
+        }]);
+        await NorthstarDB.update("invoices", existingInvoice.id, {
+          linehaulAmount: linehaul, detentionHoursBilled: hours, detentionAmountBilled: detentionAmount,
+          fuelSurcharge: fuel, totalAmount: total, status: "PENDING_APPROVAL",
+          submittedAt: new Date().toISOString(), decisions,
+        });
+        toast("Revised invoice resubmitted.");
+        window.location.href = `invoice-view.html?id=${existingInvoice.id}`;
+      } else {
+        const invoice = await NorthstarDB.insert("invoices", {
+          shipmentId: shipment.id, carrierId: user.carrierId, linehaulAmount: linehaul,
+          detentionHoursBilled: hours, detentionAmountBilled: detentionAmount, fuelSurcharge: fuel,
+          totalAmount: total, status: "PENDING_APPROVAL", submittedAt: new Date().toISOString(), decisions: [],
+        });
+        toast("Invoice submitted for review.");
+        window.location.href = `invoice-view.html?id=${invoice.id}`;
+      }
+    });
+  }
+}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!-- ------------------------------------------
+     NORTHSTAR AP — Invoice Detail & Decision View
+     ------------------------------------------ -->
+{% extends "base.html" %}
+{% block title %}Invoice {{ invoice_id }} — Northstar AP{% endblock %}
+{% block css_file %}ap.css{% endblock %}
+{% block system_name %}NORTHSTAR AP{% endblock %}
+{% block system_tag %}
+<div class="user-chip">
+    <span class="avatar">PN</span>
+    <span class="user-info">
+        <span class="user-name">Priya Nair</span>
+        <span class="user-role">Accounts Payable</span>
+    </span>
+</div>
+{% endblock %}
+{% block breadcrumb %}<a href="/">Northstar Intranet</a> &rsaquo; <a href="/ap">Accounts Payable</a> &rsaquo; Invoice #{{ invoice_id }}{% endblock %}
+{% block sidebar %}{% include "ap_sidebar.html" %}{% endblock %}
+
+{% block content %}
+{% if not invoice %}
+<div class="error">No invoice found for Invoice ID {{ invoice_id }}.</div>
+{% else %}
+<!-- ------------------------------------------
+     PAGE HEADER & STATUS BADGE
+     ------------------------------------------ -->
+<div class="page-header">
+    <div>
+        <h1>Invoice #{{ invoice.invc_id }}</h1>
+        <p>Carrier ID {{ invoice.car_id }} &middot; Load #{{ invoice.ld_id }} &middot; Submitted {{ invoice.subm_dt }}</p>
+    </div>
+    <span class="status {{ status|lower }}">{{ "Pending Review" if status == "PENDING" else status.title() }}</span>
+</div>
+
+<!-- ------------------------------------------
+     LINE ITEM CHARGES BREAKDOWN
+     ------------------------------------------ -->
+<section class="panel">
+    <div class="panel-header">
+        <h2>Billed Line Item Breakdown</h2>
+        <span style="font-size: 11px; font-weight: 600; color: var(--ap-muted);">CURRENCY IN USD ($)</span>
+    </div>
+    <table>
+        <thead>
+            <tr><th>Charge Type / Description</th><th style="text-align:right;">Billed Amount</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Base Linehaul Rate</td><td class="amt">${{ invoice.linehaul_amt }}</td></tr>
+            <tr><td>Fuel Surcharge (FSC)</td><td class="amt">${{ invoice.fuel_surchg_amt }}</td></tr>
+            <tr><td>Detention Charge ({{ invoice.detn_hrs_billed_qty }} hrs billed @ carrier rate)</td><td class="amt">${{ invoice.detn_amt_billed }}</td></tr>
+            <tr class="total-row"><td>Total Billed Amount</td><td class="amt">${{ invoice.tot_amt }}</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ------------------------------------------
+     WORKFLOW STEPPER
+     ------------------------------------------ -->
+<section class="panel">
+    <div class="panel-header"><h2>Payment Approval Workflow</h2></div>
+    <div class="stepper-container">
+        <ul class="stepper">
+            <li class="done">
+                <div class="step-icon">✓</div>
+                <span class="step-label">Received</span>
+            </li>
+            <li class="done">
+                <div class="step-icon">✓</div>
+                <span class="step-label">Under Review</span>
+            </li>
+            {% if status == "HOLD" %}
+            <li class="current hold-step">
+                <div class="step-icon">!</div>
+                <span class="step-label">On Hold</span>
+            </li>
+            <li class="">
+                <div class="step-icon">4</div>
+                <span class="step-label">Payment Released</span>
+            </li>
+            {% else %}
+            <li class="{{ 'current' if status == 'PENDING' else 'done' }}">
+                <div class="step-icon">{{ "3" if status == "PENDING" else "✓" }}</div>
+                <span class="step-label">{{ "Awaiting Approval" if status == "PENDING" else "Approved" }}</span>
+            </li>
+            <li class="{{ 'done' if status == 'APPROVED' else '' }}">
+                <div class="step-icon">{{ "✓" if status == "APPROVED" else "4" }}</div>
+                <span class="step-label">Scheduled for Payment</span>
+            </li>
+            {% endif %}
+        </ul>
+    </div>
+</section>
+
+<!-- ------------------------------------------
+     MANUAL CROSS-CHECK NOTICE
+     ------------------------------------------ -->
+<div class="notice">
+    <strong>System Note:</strong> Northstar AP does not automatically verify <code>detn_hrs_billed_qty</code> against contracted load terms or real dock records. To inspect agreed rates, open <strong>Transportation Management</strong> for Load #{{ invoice.ld_id }}. To check actual gate timestamps, open <strong>Terminal Operations</strong>. To check carrier compliance standing, open <strong>Carrier Management</strong> for Carrier ID {{ invoice.car_id }}.
+</div>
+
+<!-- ------------------------------------------
+     PROPOSED AUTOMATED COPILOT BANNER
+     ------------------------------------------ -->
+<div class="future-feature" title="Not yet approved for use — proposed by FDE engagement">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 6v6l4 2"/></svg>
+    <span>Proposed: Automated Reconciliation Copilot (pending approval &amp; integration)</span>
+</div>
+
+<!-- ------------------------------------------
+     DECISION ACTIONS
+     ------------------------------------------ -->
+<section class="panel">
+    <div class="panel-header"><h2>Review Action</h2></div>
+    <div class="actions">
+        <a class="btn btn-hold" href="/ap/invoice/{{ invoice.invc_id }}/decision/confirm?dcsn_cd=HOLD">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            Hold Invoice
+        </a>
+        <a class="btn btn-approve" href="/ap/invoice/{{ invoice.invc_id }}/decision/confirm?dcsn_cd=APPROVED">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Approve Invoice
+        </a>
+    </div>
+</section>
+
+<!-- ------------------------------------------
+     DECISION HISTORY LOG
+     ------------------------------------------ -->
+<section class="panel">
+    <div class="panel-header"><h2>Audit Trail &amp; Decision History</h2></div>
+    {% if decisions %}
+    <table>
+        <thead>
+            <tr><th>Timestamp</th><th>Decision Code</th><th>Processed By</th><th>Note / Reason</th></tr>
+        </thead>
+        <tbody>
+            {% for d in decisions %}
+            <tr>
+                <td style="font-family: var(--font-mono); font-size: 12px; color: var(--ap-muted);">{{ d.dcsn_ts }}</td>
+                <td><span class="status {{ d.dcsn_cd|lower }}">{{ d.dcsn_cd }}</span></td>
+                <td style="font-weight: 600;">{{ d.dcsn_by_txt }}</td>
+                <td>{{ d.dcsn_note_txt if d.dcsn_note_txt else "—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="panel-empty">No decisions recorded yet for this invoice.</p>
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}
+
+{% block footer %}Northstar Freight Accounts Payable System &copy; 2026{% endblock %}

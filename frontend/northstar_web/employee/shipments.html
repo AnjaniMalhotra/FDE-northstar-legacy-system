@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shipments (TMS) — Northstar Freight Employee Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="employee">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Employee Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="booking-requests.html"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
+      <a href="invoices.html"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1>Shipments</h1>
+      <div class="topbar-meta">Transportation Management (TMS)</div>
+    </div>
+    <nav class="system-tabs">
+      <a href="shipments.html" class="active">🚛 Shipments (TMS)</a>
+      <a href="dock-events.html">🕒 Dock Events (DockTrak)</a>
+      <a href="carriers.html">🏷️ Carrier Master</a>
+      <a href="transcheck.html">🛡️ TransCheck</a>
+      <a href="policy-reference.html">📄 Policy Reference</a>
+    </nav>
+    <div class="content">
+      <p class="policy-box">This is the booking record — agreed rate, free-time allowance, and detention rate for every load. It does not know what actually happened at the dock; that's in Dock Events.</p>
+      <div class="card">
+        <div class="card-header"><h2>All Shipments</h2></div>
+        <div class="filter-bar" id="filter-bar"></div>
+        <div id="table-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("employee");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  await renderEmployeeBadges();
+
+  const shipments = (await NorthstarDB.all("shipments")).sort((a, b) => b.id - a.id);
+  const carriers = await NorthstarDB.all("carriers");
+
+  let activeFilter = "ALL";
+  function render() {
+    renderFilterPills("filter-bar", [
+      { value: "ALL", label: "All" },
+      { value: "SCHEDULED", label: "Scheduled" },
+      { value: "ENROUTE", label: "Enroute" },
+      { value: "AT_DOCK", label: "At Dock" },
+      { value: "DELIVERED", label: "Delivered" },
+    ], activeFilter, (v) => { activeFilter = v; render(); });
+
+    const rows = activeFilter === "ALL" ? shipments : shipments.filter((s) => s.status === activeFilter);
+    const wrap = document.getElementById("table-wrap");
+    wrap.innerHTML = rows.length === 0 ? `<div class="card-empty">No shipments match this filter.</div>` :
+      `<table><thead><tr><th>ID</th><th>Route</th><th>Carrier</th><th class="num">Agreed Rate</th><th>Free Time</th><th>Detention Rate</th><th>Status</th></tr></thead>
+      <tbody>${rows.map((s) => {
+        const c = carriers.find((c) => c.id === s.carrierId);
+        return `<tr>
+          <td>#${s.id}</td><td>${s.origin} &rarr; ${s.dest}</td><td>${c ? c.name : "—"}</td>
+          <td class="num amt">${formatCurrency(s.agreedRate)}</td>
+          <td>${s.detentionFreeHours} hrs</td><td>${formatCurrency(s.detentionRatePerHour)}/hr</td>
+          <td>${pillHtml(s.status)}</td>
+        </tr>`;
+      }).join("")}</tbody></table>`;
+  }
+  render();
+}
+})();
+</script>
+</body>
+</html>

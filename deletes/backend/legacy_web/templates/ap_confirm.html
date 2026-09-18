@@ -1,0 +1,67 @@
+<!-- ------------------------------------------
+     NORTHSTAR AP — Confirm Invoice Decision
+     ------------------------------------------ -->
+{% extends "base.html" %}
+{% block title %}Confirm — Invoice {{ invoice.invc_id }}{% endblock %}
+{% block css_file %}ap.css{% endblock %}
+{% block system_name %}NORTHSTAR AP{% endblock %}
+{% block system_tag %}
+<div class="user-chip">
+    <span class="avatar">PN</span>
+    <span class="user-info">
+        <span class="user-name">Priya Nair</span>
+        <span class="user-role">Accounts Payable</span>
+    </span>
+</div>
+{% endblock %}
+{% block breadcrumb %}<a href="/">Northstar Intranet</a> &rsaquo; <a href="/ap">Accounts Payable</a> &rsaquo;
+    <a href="/ap/invoice?invoice_id={{ invoice.invc_id }}">Invoice #{{ invoice.invc_id }}</a> &rsaquo; Confirm{% endblock %}
+{% block sidebar %}{% include "ap_sidebar.html" %}{% endblock %}
+
+{% block content %}
+<!-- ------------------------------------------
+     PAGE HEADER
+     ------------------------------------------ -->
+<div class="page-header">
+    {% if dcsn_cd == "APPROVED" %}
+    <div>
+        <h1 style="color: #047857;">Confirm Invoice Approval</h1>
+        <p>You are about to approve <strong>${{ invoice.tot_amt }}</strong> for payment release.</p>
+    </div>
+    {% else %}
+    <div>
+        <h1 style="color: #b91c1c;">Confirm Invoice Hold</h1>
+        <p>You are about to place <strong>${{ invoice.tot_amt }}</strong> on hold pending carrier dispute.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ------------------------------------------
+     DECISION CONFIRMATION FORM
+     ------------------------------------------ -->
+<section class="panel">
+    <div class="panel-header"><h2>Authorization Details</h2></div>
+    <form method="post" action="/ap/invoice/{{ invoice.invc_id }}/decision" class="stacked-form">
+        <input type="hidden" name="dcsn_cd" value="{{ dcsn_cd }}">
+        
+        <div>
+            <label for="dcsn_by_txt">Authorized By (Your Name)</label>
+            <input type="text" id="dcsn_by_txt" name="dcsn_by_txt" value="Priya Nair" required style="width: 100%;">
+        </div>
+        
+        <div>
+            <label for="dcsn_note_txt">{% if dcsn_cd == "HOLD" %}Reason for Hold (Required){% else %}Approval Note (Optional){% endif %}</label>
+            <textarea id="dcsn_note_txt" name="dcsn_note_txt" rows="4" style="width: 100%;" {% if dcsn_cd == "HOLD" %}required{% endif %} placeholder="{% if dcsn_cd == 'HOLD' %}e.g. Detention hours billed (8.5 hrs) exceeds contracted free time without dock verification.{% else %}Approved for payment release.{% endif %}"></textarea>
+        </div>
+
+        <div class="actions">
+            <a class="btn secondary" href="/ap/invoice?invoice_id={{ invoice.invc_id }}">Cancel</a>
+            <button type="submit" class="btn {% if dcsn_cd == 'APPROVED' %}btn-approve{% else %}btn-hold{% endif %}">
+                Confirm {{ "Approval" if dcsn_cd == "APPROVED" else "Hold Action" }}
+            </button>
+        </div>
+    </form>
+</section>
+{% endblock %}
+
+{% block footer %}Northstar Freight Accounts Payable System &copy; 2026{% endblock %}

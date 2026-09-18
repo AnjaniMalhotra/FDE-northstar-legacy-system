@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420">
+  <rect width="1200" height="420" fill="#f1eee7"/>
+  <rect x="10" y="10" width="1180" height="400" fill="none" stroke="#d9d3c9" stroke-width="2" stroke-dasharray="10 7" rx="14"/>
+  <g>
+    <rect x="570.0" y="170.0" width="60" height="44" rx="6" fill="none" stroke="#c9c2b4" stroke-width="3"/>
+    <circle cx="587.0" cy="186.0" r="5" fill="#c9c2b4"/>
+    <path d="M 570.0 208.0 L 592.0 189.0 L 606.0 201.0 L 618.0 190.0 L 630.0 208.0 Z" fill="#c9c2b4"/>
+  </g>
+  <text x="600.0" y="250.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#86807a">Add photo (1200×420)</text>
+</svg>

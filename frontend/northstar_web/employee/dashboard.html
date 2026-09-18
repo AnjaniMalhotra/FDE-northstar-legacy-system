@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Northstar Freight Employee Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="employee">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Employee Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html" class="active"><span class="icon">🏠</span> Dashboard</a>
+      <a href="booking-requests.html"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
+      <a href="invoices.html"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1>Dashboard</h1>
+      <div class="topbar-meta" id="role-label"></div>
+    </div>
+    <nav class="system-tabs">
+      <a href="shipments.html">🚛 Shipments (TMS)</a>
+      <a href="dock-events.html">🕒 Dock Events (DockTrak)</a>
+      <a href="carriers.html">🏷️ Carrier Master</a>
+      <a href="transcheck.html">🛡️ TransCheck</a>
+      <a href="policy-reference.html">📄 Policy Reference</a>
+    </nav>
+
+    <div class="content">
+      <div class="kpi-row">
+        <div class="kpi-tile"><div class="kpi-top"><span class="kpi-icon">📥</span><span class="kpi-label">Booking Requests Pending</span></div><span class="kpi-num" id="kpi-bookings">0</span></div>
+        <div class="kpi-tile"><div class="kpi-top"><span class="kpi-icon">🧾</span><span class="kpi-label">Invoices Awaiting Review</span></div><span class="kpi-num" id="kpi-invoices">0</span></div>
+        <div class="kpi-tile"><div class="kpi-top"><span class="kpi-icon">⏸</span><span class="kpi-label">Invoices On Hold</span></div><span class="kpi-num" id="kpi-hold">0</span></div>
+        <div class="kpi-tile accent"><div class="kpi-top"><span class="kpi-icon">✓</span><span class="kpi-label">Approved This Period</span></div><span class="kpi-num" id="kpi-approved-amt">$0</span></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><h2>Booking Requests Queue</h2><a class="btn btn-secondary btn-sm" href="booking-requests.html">View All</a></div>
+          <div id="booking-queue-wrap"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2>Invoice Approval Queue</h2><a class="btn btn-secondary btn-sm" href="invoices.html">View All</a></div>
+          <div id="invoice-queue-wrap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("employee");
+if (user) {
+  document.getElementById("who-label").textContent = user.name;
+  document.getElementById("role-label").textContent = user.role.replace("_", " ");
+  await renderEmployeeBadges();
+
+  const bookings = await NorthstarDB.query("shipmentRequests", (r) => r.status === "PENDING_REVIEW");
+  const invoices = await NorthstarDB.all("invoices");
+  const pendingInvoices = invoices.filter((i) => i.status === "PENDING_APPROVAL");
+  const onHoldInvoices = invoices.filter((i) => i.status === "ON_HOLD");
+  const approvedAmt = invoices.filter((i) => i.status === "APPROVED").reduce((sum, i) => sum + i.totalAmount, 0);
+
+  document.getElementById("kpi-bookings").textContent = bookings.length;
+  document.getElementById("kpi-invoices").textContent = pendingInvoices.length;
+  document.getElementById("kpi-hold").textContent = onHoldInvoices.length;
+  document.getElementById("kpi-approved-amt").textContent = formatCurrency(approvedAmt);
+
+  const carriers = await NorthstarDB.all("carriers");
+  const bookingWrap = document.getElementById("booking-queue-wrap");
+  bookingWrap.innerHTML = bookings.length === 0
+    ? `<div class="card-empty">No booking requests pending review.</div>`
+    : `<table><thead><tr><th>Route</th><th>Weight</th><th>Pickup</th></tr></thead><tbody>${
+        bookings.slice(0, 5).map((r) => `<tr class="clickable" onclick="window.location.href='booking-detail.html?id=${r.id}'">
+          <td>${r.origin} &rarr; ${r.dest}</td><td>${r.weightLbs.toLocaleString()} lbs</td><td>${formatDate(r.pickupDate)}</td>
+        </tr>`).join("")
+      }</tbody></table>`;
+
+  const invoiceWrap = document.getElementById("invoice-queue-wrap");
+  invoiceWrap.innerHTML = pendingInvoices.length === 0
+    ? `<div class="card-empty">No invoices pending review.</div>`
+    : `<table><thead><tr><th>Carrier</th><th class="num">Total</th></tr></thead><tbody>${
+        pendingInvoices.slice(0, 5).map((i) => {
+          const c = carriers.find((c) => c.id === i.carrierId);
+          return `<tr class="clickable" onclick="window.location.href='invoice-detail.html?id=${i.id}'">
+            <td>${c ? c.name : "—"}</td><td class="num amt">${formatCurrency(i.totalAmount)}</td>
+          </tr>`;
+        }).join("")
+      }</tbody></table>`;
+}
+})();
+</script>
+</body>
+</html>
