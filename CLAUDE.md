@@ -70,6 +70,10 @@ structure.
 Northstar-Legacy-System/
 ├── CLAUDE.md                ← this file
 ├── README.md                ← what this is and how to try it (Docker or GCP)
+├── project-overview/         The parent FDE capstone's own docs (CLAUDE.md, README.md,
+│                             COMMANDS.md, prompts.md) — this project's GitHub repo only tracks
+│                             this one folder of the capstone, so its wider context rides along
+│                             here rather than living one level up where GitHub can't see it.
 ├── requirements.txt
 ├── .env.example
 ├── Dockerfile / docker-compose.yml / docker-entrypoint.sh / .dockerignore

@@ -5,7 +5,8 @@ shippers who need freight moved with carriers who move it. This is Northstar's s
 shippers book shipments, employees approve them and review invoices, and carriers haul the freight
 and bill for it — all without any AI involved. It's the "before" system: the world an AI copilot
 (built separately, in the sibling `Northstar-Copilot-POC` project) gets added on top of later,
-without changing anything in here.
+without changing anything in here. See [`project-overview/README.md`](project-overview/README.md)
+for the full three-part capstone this project is one part of.
 
 ## Try it
 
