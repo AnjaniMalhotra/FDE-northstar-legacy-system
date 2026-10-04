@@ -91,7 +91,7 @@ sibling project.
 |---|---|
 | Carriers in the network | 25 |
 | Shippers | 50 |
-| Invoices | 100 |
+| Invoices | 5000 |
 | Invoice status mix | ~7% on hold, ~52% approved, ~41% pending approval |
 
 These numbers come from the shared `northstar_web` database — the same database
