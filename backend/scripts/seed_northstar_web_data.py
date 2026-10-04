@@ -29,10 +29,23 @@ project_root = Path(__file__).resolve().parents[2]
 load_dotenv(project_root / ".env")
 
 db_name = os.getenv("NORTHSTAR_WEB_DB_NAME", "northstar_web")
-db_url = (
-    f"postgresql+psycopg://{os.getenv('DB_ADMIN_USER')}:{os.getenv('DB_ADMIN_PASSWORD', '')}"
-    f"@{os.getenv('DB_HOST', 'localhost')}:{os.getenv('DB_PORT', '5432')}/{db_name}"
-)
+db_admin_user = os.getenv("DB_ADMIN_USER")
+db_admin_password = os.getenv("DB_ADMIN_PASSWORD", "")
+
+# ------------------------------------------
+# BUILD DATABASE ENGINE — same two connection shapes as
+# backend/northstar_web_api/db.py: a Cloud SQL Unix socket when
+# INSTANCE_CONNECTION_NAME is set (Cloud Run), otherwise plain TCP.
+# ------------------------------------------
+instance_connection_name = os.getenv("INSTANCE_CONNECTION_NAME")
+if instance_connection_name:
+    socket_path = f"/cloudsql/{instance_connection_name}"
+    db_url = f"postgresql+psycopg://{db_admin_user}:{db_admin_password}@/{db_name}?host={socket_path}"
+else:
+    db_url = (
+        f"postgresql+psycopg://{db_admin_user}:{db_admin_password}"
+        f"@{os.getenv('DB_HOST', 'localhost')}:{os.getenv('DB_PORT', '5432')}/{db_name}"
+    )
 engine = create_engine(db_url)
 
 # ------------------------------------------

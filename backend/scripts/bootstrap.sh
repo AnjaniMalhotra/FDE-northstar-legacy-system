@@ -37,11 +37,14 @@ psql -d "${NORTHSTAR_WEB_DB_NAME:-northstar_web}" -f scripts/northstar_web_migra
 
 WEB_ROW_COUNT=$(psql -d "${NORTHSTAR_WEB_DB_NAME:-northstar_web}" -tAc "SELECT COUNT(*) FROM carriers" 2>/dev/null || echo 0)
 if [ "$WEB_ROW_COUNT" -eq 0 ]; then
-    echo "[bootstrap] No northstar_web data found — seeding..."
+    echo "[bootstrap] No northstar_web data found — seeding starter data..."
     python3 scripts/seed_northstar_web_data.py
 else
-    echo "[bootstrap] northstar_web data already seeded ($WEB_ROW_COUNT carriers) — skipping."
+    echo "[bootstrap] northstar_web data already seeded ($WEB_ROW_COUNT carriers) — skipping starter seed."
 fi
+
+echo "[bootstrap] Scaling up to the full demo dataset (25 carriers, 100 shippers, 5,000 invoices)..."
+python3 scripts/generate_more_data.py
 
 # ------------------------------------------
 # AI COPILOT — purely additive tables/roles on top of the same database
