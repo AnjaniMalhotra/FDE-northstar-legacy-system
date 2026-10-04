@@ -16,6 +16,7 @@ Then open http://localhost:8080/
 from pathlib import Path
 
 from fastapi import APIRouter, Cookie, Depends, FastAPI, HTTPException, Response
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -26,9 +27,12 @@ from backend.northstar_web_api.db import get_conn
 from backend.northstar_web_api.routes import router as collections_router
 
 # ------------------------------------------
-# APP
+# APP — gzip on responses over 1KB; the invoice list alone is 1.6MB
+# uncompressed at the full demo dataset's scale, and compresses to a
+# fraction of that for JSON's very repetitive key names.
 # ------------------------------------------
 app = FastAPI(title="Northstar Web API")
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 auth_router = APIRouter(prefix="/api/auth")
 

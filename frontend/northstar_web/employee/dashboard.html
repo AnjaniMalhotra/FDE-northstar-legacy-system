@@ -70,17 +70,28 @@ if (user) {
   document.getElementById("role-label").textContent = user.role.replace("_", " ");
   await renderEmployeeBadges();
 
+  // ------------------------------------------
+  // KPI NUMBERS — one small server-computed summary, not the whole
+  // invoices/shipmentRequests tables downloaded just to count rows. Wrapped
+  // in try/catch on purpose: a failed fetch used to leave every tile
+  // silently stuck at its HTML default (0 / $0) with no sign anything had
+  // gone wrong — found the hard way, on the real deployed dataset.
+  // ------------------------------------------
+  try {
+    const summary = await NorthstarDB.all("dashboard-summary");
+    document.getElementById("kpi-bookings").textContent = summary.bookingsPending;
+    document.getElementById("kpi-invoices").textContent = summary.invoicesPending;
+    document.getElementById("kpi-hold").textContent = summary.invoicesOnHold;
+    document.getElementById("kpi-approved-amt").textContent = formatCurrency(summary.approvedAmount);
+  } catch (e) {
+    ["kpi-bookings", "kpi-invoices", "kpi-hold", "kpi-approved-amt"].forEach((id) => {
+      document.getElementById(id).textContent = "—";
+    });
+    console.error("Dashboard summary failed to load:", e.message);
+  }
+
   const bookings = await NorthstarDB.query("shipmentRequests", (r) => r.status === "PENDING_REVIEW");
-  const invoices = await NorthstarDB.all("invoices");
-  const pendingInvoices = invoices.filter((i) => i.status === "PENDING_APPROVAL");
-  const onHoldInvoices = invoices.filter((i) => i.status === "ON_HOLD");
-  const approvedAmt = invoices.filter((i) => i.status === "APPROVED").reduce((sum, i) => sum + i.totalAmount, 0);
-
-  document.getElementById("kpi-bookings").textContent = bookings.length;
-  document.getElementById("kpi-invoices").textContent = pendingInvoices.length;
-  document.getElementById("kpi-hold").textContent = onHoldInvoices.length;
-  document.getElementById("kpi-approved-amt").textContent = formatCurrency(approvedAmt);
-
+  const pendingInvoices = await NorthstarDB.query("invoices", (i) => i.status === "PENDING_APPROVAL");
   const carriers = await NorthstarDB.all("carriers");
   const bookingWrap = document.getElementById("booking-queue-wrap");
   bookingWrap.innerHTML = bookings.length === 0
