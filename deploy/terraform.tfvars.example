@@ -1,0 +1,11 @@
+# Copy to deploy/terraform/terraform.tfvars and fill in your own project.
+# Must be the same project Northstar-Legacy-System was already deployed
+# into — this deployment reads its Cloud SQL instance, doesn't create one.
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+
+# pinecone_api_key and openai_api_key are NOT set here on purpose — they're
+# real secrets, and this file (unlike terraform.tfvars itself) is meant to
+# be committed. deploy/setup_gcp.sh reads them from your own .env and
+# passes them as TF_VAR_pinecone_api_key / TF_VAR_openai_api_key instead,
+# so a real key is never written to a file at all.

@@ -25,6 +25,26 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
     && pip install --no-cache-dir -r requirements.txt
 
 # ------------------------------------------
+# PRE-DOWNLOAD THE EMBEDDING MODEL — baked into the image at build time,
+# not fetched from Hugging Face on every cold start. Found the hard way:
+# a real Cloud Run deploy failed its startup health check because the
+# model download got rate-limited (HF Hub 429) and the forced backoff wait
+# alone blew past the startup probe window, before bootstrap.sh's
+# "RAG ingestion" step even got to ingest anything.
+#
+# Baking the model in isn't enough by itself, also found the hard way:
+# sentence-transformers/huggingface_hub still makes a HEAD request at
+# *runtime* to check for an optional adapter config, even when the model
+# is fully cached locally — and that HEAD request is exactly what kept
+# getting rate-limited, on every cold start, regardless of the cache.
+# HF_HUB_OFFLINE stops it from ever touching the network for this at all —
+# set AFTER the download below, not before: the first download still needs
+# real network access, offline mode would just make it fail outright.
+# ------------------------------------------
+RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+ENV HF_HUB_OFFLINE=1
+
+# ------------------------------------------
 # APP CODE
 # ------------------------------------------
 COPY backend/ backend/
