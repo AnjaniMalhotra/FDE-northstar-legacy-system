@@ -8,7 +8,9 @@ actually runs — **as one self-contained project**, with the AI's own logic (`c
 inside this project's own backend, not calling out to a separately-running service.
 
 See [docs/01-how-the-ai-integration-works.md](docs/01-how-the-ai-integration-works.md) for what
-each piece does and why it's built the way it is.
+each piece does and why it's built the way it is, and
+[`project-overview/README.md`](project-overview/README.md) for the full three-part capstone this
+project is one part of.
 
 The portal's own code — booking, invoices, dock events, carrier records, the Approve/Hold decision
 flow — is unchanged from `Northstar-Legacy-System`. The AI's own logic was ported in from the

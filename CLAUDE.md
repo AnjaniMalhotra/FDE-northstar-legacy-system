@@ -75,6 +75,10 @@ running build log — keep it that way.
 Northstar-Legacy-With-AI/
 ├── CLAUDE.md                ← this file
 ├── README.md                ← setup and overview
+├── project-overview/         The parent FDE capstone's own docs (CLAUDE.md, README.md,
+│                             COMMANDS.md, prompts.md) — this project's GitHub repo only tracks
+│                             this one folder of the capstone, so its wider context rides along
+│                             here rather than living one level up where GitHub can't see it.
 ├── requirements.txt         ← the portal's own deps + the AI's stack (LangGraph, Pinecone, ...)
 ├── .env.example
 ├── copilot/                 The AI's own logic — orchestrator, tools, guardrails, reconciliation,
