@@ -17,6 +17,7 @@ Then open http://localhost:8020/
 from pathlib import Path
 
 from fastapi import APIRouter, Cookie, Depends, FastAPI, HTTPException, Response
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -29,9 +30,12 @@ from backend.copilot_api.main import auth_router as ai_auth_router
 from backend.copilot_api.routes import router as ai_api_router
 
 # ------------------------------------------
-# APP
+# APP — gzip on responses over 1KB; the invoice list alone is 1.6MB
+# uncompressed at the full demo dataset's scale, and compresses to a
+# fraction of that for JSON's very repetitive key names.
 # ------------------------------------------
 app = FastAPI(title="Northstar Web API")
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 auth_router = APIRouter(prefix="/api/auth")
 

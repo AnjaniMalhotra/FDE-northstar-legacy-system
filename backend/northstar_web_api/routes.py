@@ -47,15 +47,28 @@ def serialize(row: dict) -> dict:
 
 
 # ------------------------------------------
-# DECISIONS — attach an invoice's decision history, in JS's expected shape
+# DECISIONS — attach each invoice's decision history, in JS's expected
+# shape. One query for the whole batch (IN (...) on every invoice id),
+# not one query per invoice — the earlier per-row version was a real N+1
+# bug invisible at a few dozen invoices and a multi-minute hang at 5,000,
+# confirmed by testing against the actual scaled-up dataset, not a guess.
 # ------------------------------------------
 def attach_decisions(conn: Connection, invoice_rows: list[dict]) -> list[dict]:
+    if not invoice_rows:
+        return invoice_rows
+    ids = [row["id"] for row in invoice_rows]
+    all_decisions = conn.execute(
+        text("SELECT invoice_id, decided_by, decision, note, at FROM invoice_decisions"
+             " WHERE invoice_id = ANY(:ids) ORDER BY at"),
+        {"ids": ids},
+    ).mappings().all()
+    by_invoice: dict[int, list[dict]] = {}
+    for d in all_decisions:
+        d = dict(d)
+        invoice_id = d.pop("invoice_id")
+        by_invoice.setdefault(invoice_id, []).append(row_to_camel(d))
     for row in invoice_rows:
-        decisions = conn.execute(
-            text("SELECT decided_by, decision, note, at FROM invoice_decisions WHERE invoice_id = :id ORDER BY at"),
-            {"id": row["id"]},
-        ).mappings().all()
-        row["decisions"] = [row_to_camel(dict(d)) for d in decisions]
+        row["decisions"] = by_invoice.get(row["id"], [])
     return invoice_rows
 
 
@@ -67,6 +80,35 @@ def replace_decisions(conn: Connection, invoice_id: int, decisions: list[dict]) 
             {"iid": invoice_id, "decided_by": d.get("decidedBy"), "decision": d.get("decision"),
              "note": d.get("note"), "at": d.get("at")},
         )
+
+
+# ------------------------------------------
+# DASHBOARD SUMMARY — GET /api/dashboard-summary. Registered before the
+# generic /{collection} route below (Starlette matches in registration
+# order; after it, "dashboard-summary" would just be swallowed as a
+# collection name). Counts and sums computed in SQL, not by downloading
+# every row and filtering client-side — the whole reason this exists:
+# dashboard.html used to fetch every invoice and every shipment request in
+# full just to show 4 numbers, which was fine at a few dozen rows and a
+# multi-minute hang at the full demo dataset's scale.
+# ------------------------------------------
+@router.get("/dashboard-summary")
+def dashboard_summary(conn: Connection = Depends(get_conn)):
+    bookings_pending = conn.execute(
+        text("SELECT count(*) FROM shipment_requests WHERE status = 'PENDING_REVIEW'")
+    ).scalar_one()
+    invoice_counts = dict(conn.execute(
+        text("SELECT status, count(*) FROM invoices GROUP BY status")
+    ).all())
+    approved_amount = conn.execute(
+        text("SELECT coalesce(sum(total_amount), 0) FROM invoices WHERE status = 'APPROVED'")
+    ).scalar_one()
+    return {
+        "bookingsPending": bookings_pending,
+        "invoicesPending": invoice_counts.get("PENDING_APPROVAL", 0),
+        "invoicesOnHold": invoice_counts.get("ON_HOLD", 0),
+        "approvedAmount": float(approved_amount),
+    }
 
 
 # ------------------------------------------
