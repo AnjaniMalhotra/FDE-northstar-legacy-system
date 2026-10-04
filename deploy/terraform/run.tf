@@ -6,9 +6,10 @@
 # path up automatically whenever INSTANCE_CONNECTION_NAME is set.
 # ------------------------------------------
 resource "google_cloud_run_v2_service" "app" {
-  name     = "northstar-legacy-system"
-  project  = var.project_id
-  location = var.region
+  name                = "northstar-legacy-system"
+  project             = var.project_id
+  location            = var.region
+  deletion_protection = false
 
   template {
     service_account = google_service_account.app.email

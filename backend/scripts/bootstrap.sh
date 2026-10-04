@@ -46,7 +46,7 @@ else
     echo "[bootstrap] northstar_web data already seeded ($WEB_ROW_COUNT carriers) — skipping starter seed."
 fi
 
-echo "[bootstrap] Scaling up to the full demo dataset (~25 carriers, 50 shippers, 100 invoices)..."
+echo "[bootstrap] Scaling up to the full demo dataset (25 carriers, 100 shippers, 5,000 invoices)..."
 python3 scripts/generate_more_data.py
 
 echo "[bootstrap] Done."
