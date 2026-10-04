@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pending Approvals — Northstar Freight Employee Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+</head>
+<body data-portal="employee">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Employee Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="booking-requests.html"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
+      <a href="invoices.html"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+      <a href="ai-approvals.html" class="active"><span class="icon">🤖</span> Pending Approvals</a>
+      <a href="ai-audit.html"><span class="icon">📜</span> Audit Log</a>
+      <a href="policy-reference.html"><span class="icon">📄</span> Policies</a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1>Pending Approvals</h1>
+      <div class="topbar-meta">Tier 2 discrepancies the AI found but can't resolve on its own</div>
+    </div>
+    <div class="content">
+      <div id="approvals-body"><p class="muted">Loading&hellip;</p></div>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script src="../shared/js/ai_widget.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("employee");
+if (!user) return;
+document.getElementById("who-label").textContent = user.name;
+await renderEmployeeBadges();
+
+const body = document.getElementById("approvals-body");
+
+async function renderFlags() {
+  let flags;
+  try {
+    flags = await aiApiRequest("GET", "/flags/pending");
+  } catch (e) {
+    body.innerHTML = `<p class="helper-notice">${aiEscapeHtml(e.message)}</p>`;
+    return;
+  }
+  if (!flags.length) {
+    body.innerHTML = `<div class="card"><div class="card-empty">No flags pending approval.</div></div>`;
+    return;
+  }
+  const invoiceIdByShipment = await aiShipmentToInvoiceId();
+  body.innerHTML = flags.map((f) => `
+    <div class="card" style="margin-bottom:14px;" data-flag-id="${f.flagId}">
+      <div class="card-body">
+        <h3 style="margin-bottom:6px;">Flag ${f.flagId} &mdash; Shipment ${f.shipmentId}, Carrier ${f.carrierId} &mdash; ${pillHtml(f.tier, f.tier.replace("_", " "))} &mdash; $${Number(f.discrepancyAmount).toFixed(2)}</h3>
+        <p class="muted" style="margin-bottom:14px;">${aiEscapeHtml(f.reasoning)} &middot; logged ${formatDateTime(f.createdAt)}</p>
+        <div class="form-actions" style="margin-top:0;">
+          <button class="btn btn-primary btn-sm" data-action="approve">Approve</button>
+          <button class="btn btn-danger btn-sm" data-action="reject">Reject</button>
+          <a class="btn btn-secondary btn-sm" href="invoice-detail.html?id=${invoiceIdByShipment[f.shipmentId] ?? ""}">View Invoice</a>
+        </div>
+      </div>
+    </div>`).join("");
+
+  body.querySelectorAll("[data-action]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const flagId = btn.closest("[data-flag-id]").dataset.flagId;
+      btn.closest(".card").querySelectorAll("button").forEach((b) => (b.disabled = true));
+      await aiApiRequest("POST", `/flags/${flagId}/${btn.dataset.action}`);
+      renderFlags();
+    });
+  });
+}
+
+requireAiSession(body, renderFlags);
+})();
+</script>
+</body>
+</html>

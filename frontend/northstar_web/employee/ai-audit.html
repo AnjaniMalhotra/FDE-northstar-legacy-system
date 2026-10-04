@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit Log — Northstar Freight Employee Portal</title>
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/base.css">
+<style>
+  .audit-row { cursor: pointer; }
+  .audit-row:hover td { background: var(--ink-100); }
+  .audit-row td { white-space: nowrap; }
+  .audit-row td.audit-summary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 1px; width: 100%; }
+  .modal.audit-modal { width: 640px; max-width: 90vw; }
+</style>
+</head>
+<body data-portal="employee">
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><img src="../shared/images/logo.png" alt="Northstar Freight" class="logo-img"></div>
+    <div class="sidebar-portal-label">Employee Portal</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+      <a href="booking-requests.html"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
+      <a href="invoices.html"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+      <a href="ai-approvals.html"><span class="icon">🤖</span> Pending Approvals</a>
+      <a href="ai-audit.html" class="active"><span class="icon">📜</span> Audit Log</a>
+      <a href="policy-reference.html"><span class="icon">📄</span> Policies</a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="who" id="who-label">—</span>
+      <a href="#" class="logout" onclick="NorthstarAuth.logout(); return false;">Log out</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1>Audit Log</h1>
+      <div class="topbar-meta">The last 100 entries in the AI's structured audit trail &mdash; click a row for full detail</div>
+    </div>
+    <div class="content">
+      <div id="audit-body"><p class="muted">Loading&hellip;</p></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="audit-modal-backdrop" hidden>
+  <div class="modal audit-modal" id="audit-modal-panel"></div>
+</div>
+
+<script src="../shared/js/db.js"></script>
+<script src="../shared/js/auth.js"></script>
+<script src="../shared/js/ui.js"></script>
+<script src="../shared/js/ai_widget.js"></script>
+<script>
+(async () => {
+const user = await NorthstarAuth.requireAuth("employee");
+if (!user) return;
+document.getElementById("who-label").textContent = user.name;
+await renderEmployeeBadges();
+
+const body = document.getElementById("audit-body");
+
+// A short, plain-text (no markdown syntax) single-line preview for the table cell.
+function summarize(text) {
+  if (!text) return "";
+  const plain = text.replace(/[#*`|_>]/g, " ").replace(/\s+/g, " ").trim();
+  return plain.length > 100 ? plain.slice(0, 100) + "…" : plain;
+}
+
+async function renderAuditLog() {
+  let rows;
+  try {
+    rows = await aiApiRequest("GET", "/audit-log");
+  } catch (e) {
+    body.innerHTML = `<p class="helper-notice">${aiEscapeHtml(e.message)}</p>`;
+    return;
+  }
+
+  body.innerHTML = `
+    <div class="card">
+      <table><thead><tr><th>Time</th><th>Role</th><th>Step</th><th>Summary</th></tr></thead>
+      <tbody id="audit-tbody"></tbody></table>
+    </div>`;
+
+  document.getElementById("audit-tbody").innerHTML = rows.length
+    ? rows.map((r, i) => `
+        <tr class="audit-row" data-index="${i}" title="${aiEscapeHtml(summarize(r.content))}">
+          <td>${formatDateTime(r.loggedAt)}</td>
+          <td>${pillHtml(r.role, r.role)}</td>
+          <td class="muted">${aiEscapeHtml(r.nodeName)} &rarr; <strong>${aiEscapeHtml(r.toolName)}</strong></td>
+          <td class="audit-summary">${aiEscapeHtml(summarize(r.content))}</td>
+        </tr>`).join("")
+    : `<tr><td colspan="4" class="card-empty">No audit entries yet.</td></tr>`;
+
+  const backdrop = document.getElementById("audit-modal-backdrop");
+  const panel = document.getElementById("audit-modal-panel");
+  function closeModal() { backdrop.hidden = true; }
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
+
+  document.querySelectorAll(".audit-row").forEach((tr) => {
+    tr.addEventListener("click", () => {
+      const r = rows[Number(tr.dataset.index)];
+      panel.innerHTML = `
+        <h3>${aiEscapeHtml(r.nodeName)} &rarr; ${aiEscapeHtml(r.toolName)}</h3>
+        <p class="desc">${formatDateTime(r.loggedAt)} &middot; ${aiEscapeHtml(r.role)}${r.traceId ? ` &middot; trace ${aiEscapeHtml(r.traceId)}` : ""}</p>
+        <div>${aiRenderMarkdown(r.content || "")}</div>
+        <div class="modal-actions"><button class="btn btn-secondary" id="audit-modal-close">Close</button></div>`;
+      backdrop.hidden = false;
+      document.getElementById("audit-modal-close").addEventListener("click", closeModal);
+    });
+  });
+}
+
+requireAiSession(body, renderAuditLog);
+})();
+</script>
+</body>
+</html>

@@ -17,6 +17,9 @@
       <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
       <a href="booking-requests.html"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
       <a href="invoices.html" class="active"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+      <a href="ai-approvals.html"><span class="icon">🤖</span> Pending Approvals</a>
+      <a href="ai-audit.html"><span class="icon">📜</span> Audit Log</a>
+      <a href="policy-reference.html"><span class="icon">📄</span> Policies</a>
     </nav>
     <div class="sidebar-foot">
       <span class="who" id="who-label">—</span>
@@ -38,9 +41,9 @@
     </nav>
     <div class="content">
       <div class="kpi-row" style="grid-template-columns: repeat(3, 1fr);">
-        <div class="kpi-tile"><div class="kpi-top"><span class="kpi-icon">🧾</span><span class="kpi-label">Awaiting Review</span></div><span class="kpi-num" id="kpi-pending">0</span></div>
-        <div class="kpi-tile"><div class="kpi-top"><span class="kpi-icon">⏸</span><span class="kpi-label">On Hold</span></div><span class="kpi-num" id="kpi-hold">0</span></div>
-        <div class="kpi-tile accent"><div class="kpi-top"><span class="kpi-icon">✓</span><span class="kpi-label">Approved</span></div><span class="kpi-num" id="kpi-approved">0</span></div>
+        <div class="kpi-tile clickable" data-filter="PENDING_APPROVAL" id="kpi-tile-pending"><div class="kpi-top"><span class="kpi-icon">🧾</span><span class="kpi-label">Awaiting Review</span></div><span class="kpi-num" id="kpi-pending">0</span></div>
+        <div class="kpi-tile clickable" data-filter="ON_HOLD" id="kpi-tile-hold"><div class="kpi-top"><span class="kpi-icon">⏸</span><span class="kpi-label">On Hold</span></div><span class="kpi-num" id="kpi-hold">0</span></div>
+        <div class="kpi-tile accent clickable" data-filter="APPROVED" id="kpi-tile-approved"><div class="kpi-top"><span class="kpi-icon">✓</span><span class="kpi-label">Approved</span></div><span class="kpi-num" id="kpi-approved">0</span></div>
       </div>
       <div class="card">
         <div class="card-header"><div><h2>Invoice Queue</h2><div class="sub">Oldest pending first</div></div></div>
@@ -54,6 +57,7 @@
 <script src="../shared/js/db.js"></script>
 <script src="../shared/js/auth.js"></script>
 <script src="../shared/js/ui.js"></script>
+<script src="../shared/js/ai_widget.js"></script>
 <script>
 (async () => {
 const user = await NorthstarAuth.requireAuth("employee");
@@ -72,14 +76,24 @@ if (user) {
   document.getElementById("kpi-hold").textContent = invoices.filter((i) => i.status === "ON_HOLD").length;
   document.getElementById("kpi-approved").textContent = invoices.filter((i) => i.status === "APPROVED").length;
 
-  let activeFilter = "ALL";
+  // Pre-filtered when arriving from a dashboard KPI link (e.g. invoices.html?filter=ON_HOLD).
+  const urlFilter = new URLSearchParams(window.location.search).get("filter");
+  let activeFilter = ["PENDING_APPROVAL", "ON_HOLD", "APPROVED"].includes(urlFilter) ? urlFilter : "ALL";
+
+  function setFilter(v) { activeFilter = v; render(); }
+
   function render() {
     renderFilterPills("filter-bar", [
       { value: "ALL", label: "All" },
       { value: "PENDING_APPROVAL", label: "Awaiting Review" },
       { value: "ON_HOLD", label: "On Hold" },
       { value: "APPROVED", label: "Approved" },
-    ], activeFilter, (v) => { activeFilter = v; render(); });
+    ], activeFilter, setFilter);
+
+    // KPI tiles double as filter buttons — same activeFilter state the pills above drive.
+    document.getElementById("kpi-tile-pending").classList.toggle("active", activeFilter === "PENDING_APPROVAL");
+    document.getElementById("kpi-tile-hold").classList.toggle("active", activeFilter === "ON_HOLD");
+    document.getElementById("kpi-tile-approved").classList.toggle("active", activeFilter === "APPROVED");
 
     const rows = activeFilter === "ALL" ? invoices : invoices.filter((i) => i.status === activeFilter);
     const wrap = document.getElementById("table-wrap");
@@ -95,6 +109,12 @@ if (user) {
         </tr>`;
       }).join("")}</tbody></table>`;
   }
+
+  // Clicking an active KPI again clears back to "All" instead of doing nothing.
+  document.querySelectorAll(".kpi-tile.clickable").forEach((tile) => {
+    tile.addEventListener("click", () => setFilter(activeFilter === tile.dataset.filter ? "ALL" : tile.dataset.filter));
+  });
+
   render();
 }
 })();

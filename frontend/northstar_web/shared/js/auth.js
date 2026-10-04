@@ -3,12 +3,19 @@
  * backend/northstar_web_api/. Login sets an HttpOnly session cookie the
  * browser handles automatically; there is no client-readable session
  * token and no password ever touches localStorage/sessionStorage.
+ * A relative API_BASE means this works unchanged wherever the app is
+ * running — the API and the site are always served from the same origin.
+ *
+ * This is the only login in the app. The AI copilot (ai_widget.js) has no
+ * login of its own — it reads this same session cookie server-side (see
+ * backend/copilot_api/auth.py's get_ai_user) and derives its own role from
+ * the employee's existing portal role. One login, at the start.
  */
 const NorthstarAuth = (() => {
-  const API_BASE = "http://localhost:8020/api/auth";
+  const API_BASE = "/api/auth";
 
   // ------------------------------------------
-  // LOGIN — POST credentials, server sets the session cookie on success
+  // LOGIN — POST credentials, server sets the session cookie on success.
   // ------------------------------------------
   async function login(portal, email, password) {
     const res = await fetch(`${API_BASE}/login`, {

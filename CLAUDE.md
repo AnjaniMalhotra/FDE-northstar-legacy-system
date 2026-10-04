@@ -1,4 +1,4 @@
-# Project Instructions — Northstar Legacy System
+# Project Instructions — Northstar Freight Portal, with the AI Copilot Woven In
 
 This file is read automatically at the start of every session in this project. **Read it fully
 before writing any code.** It exists because this project is being *taught*, not just shipped —
@@ -9,13 +9,19 @@ that works.
 
 ## What this project is
 
-The "before FDE" world of Northstar Freight, a fictional freight brokerage: a self-service portal —
-no AI anywhere in this project. This is the standalone sibling to `Northstar-Copilot-POC` (the AI
-system, built separately, reading and writing this project's `northstar_web` database directly, via
-its own separate, restricted Postgres roles). `legacy_web` — the five disconnected "before FDE"
-systems this project used to also contain — has been retired; see
-`docs/build-log/06-retire-legacy-web-and-northstar-freight.md`. See `README.md` for setup and
-`docs/` for the full story.
+A copy of `Northstar-Legacy-System` (Northstar Freight's self-service portal) with the AI copilot
+woven directly in — a chat widget, an AI Review panel on the invoice page, and native Pending
+Approvals/Audit Log pages, all purely additive. `Northstar-Legacy-System` itself is untouched and
+stays the clean "before" reference; this is the "after." See
+`docs/01-how-the-ai-integration-works.md` for exactly what was added and why, and `README.md` for
+setup.
+
+The AI's own logic (`copilot/`, ported from the standalone `Northstar-Copilot-POC` project) runs
+**inside this project's own backend** — one process, one port, no separate service to run.
+`Northstar-Copilot-POC` stays a separate, standalone stakeholder-demo project; nothing here depends
+on it running, and nothing there was changed to make this work. The AI's own routes are mounted
+under `/api/ai/...` (see `backend/northstar_web_api/main.py`) specifically so they can never
+collide with the portal's own generic `/api/{collection}` routes.
 
 ---
 
@@ -57,38 +63,59 @@ comment carries the non-obvious reasoning.
 
 ## Documentation is not optional — it's part of every step
 
-Every build step gets a doc in `docs/build-log/`, written before the code (a short plan — what and
-why) and updated after (what actually got built, and why it deviated if it did). See
-`docs/build-log/README.md` for the naming convention and template.
+A significant change gets noted in `docs/01-how-the-ai-integration-works.md` — what was added and
+why, and any real design tradeoff it made. `docs/` here is student-facing reference material, not a
+running build log — keep it that way.
 
 ---
 
 ## Folder structure — don't deviate without a reason
 
 ```
-Northstar-Legacy-System/
-├── CLAUDE.md / AGENTS.md    ← this file
+Northstar-Legacy-With-AI/
+├── CLAUDE.md                ← this file
 ├── README.md                ← setup and overview
-├── requirements.txt
+├── requirements.txt         ← the portal's own deps + the AI's stack (LangGraph, Pinecone, ...)
 ├── .env.example
+├── copilot/                 The AI's own logic — orchestrator, tools, guardrails, reconciliation,
+│                             RAG, prompts. Ported in from Northstar-Copilot-POC, unchanged.
+├── data/policy/             RAG source documents + policy_config.json/access_policy.json —
+│                             also ported in unchanged.
 ├── backend/
-│   ├── northstar_web_api/   FastAPI backend for the self-service portal below — real password
-│   │                         login (Postgres pgcrypto), real sessions.
-│   └── scripts/              Schema, security, and seed data for northstar_web, this project's
-│                              one database. Run scripts/bootstrap.sh once.
+│   ├── northstar_web_api/   The one FastAPI app — serves the API AND (main.py, bottom of the
+│   │                         file) mounts frontend/northstar_web/ as static files, so the whole
+│   │                         thing is one process, one port. Its own routers (portal login, the
+│   │                         generic collections API) are unchanged from Northstar-Legacy-System;
+│   │                         main.py additionally mounts copilot_api's routers (see below) onto
+│   │                         this same app, under /api/ai/....
+│   ├── copilot_api/          The AI's own routes (chat, invoice review, Pending Approvals, Audit
+│   │                         Log). No login of its own — auth.py's get_ai_user reads the
+│   │                         portal's own northstar_web_session cookie and derives the AI role
+│   │                         from the already-authenticated employee (copilot/identity.py's
+│   │                         PORTAL_ROLE_MAP). Ported in from Northstar-Copilot-POC — route
+│   │                         prefix changed "/api" → "/api/ai" (collision avoidance) and auth.py
+│   │                         rewritten to drop the separate login this way needed.
+│   └── scripts/              Schema/security/seed for northstar_web (unchanged from
+│                              Northstar-Legacy-System — only run one folder's northstar_web_api
+│                              at a time, both point at the same database), this folder's own
+│                              generate_more_data.py for a larger dataset, and the AI's own
+│                              additive schema/security/RAG-ingestion scripts.
 ├── frontend/
-│   └── northstar_web/       The shipper/employee/carrier self-service portal — plain
-│                             HTML/CSS/JS calling backend/northstar_web_api/.
-├── docs/                    Problem statement, company profile, and this system's own
-│                             build-log entries.
-└── deletes/                 legacy_web and its supporting northstar_freight scripts, retired.
+│   └── northstar_web/       The shipper/employee/carrier self-service portal.
+│       ├── shared/js/ai_widget.js   The chat widget — no login logic of its own, just checks
+│       │                             the one portal session already in place.
+│       └── employee/
+│           ├── ai-approvals.html, ai-audit.html   The AI's own pages, native to this portal.
+│           ├── invoice-detail.html                Unchanged except one new AI Review card.
+│           └── (every other page)                 Unchanged, plus the widget.
+└── docs/                    This folder's own story — the AI integration — not a duplicate of
+                              Northstar-Legacy-System's own portal documentation.
 ```
 
-**One database**, this project's own: `northstar_web` (carriers, users, shipments, dock events,
-invoices, invoice decisions — clean, modern column names). `legacy_web` and the separate
-`northstar_freight` database it used are retired (see
-`docs/build-log/06-retire-legacy-web-and-northstar-freight.md`) — the sibling AI copilot project
-reads and writes `northstar_web` directly instead, via its own added-on-top tables/roles.
+**One database**, shared with `Northstar-Legacy-System`: `northstar_web` (carriers, users,
+shipments, dock events, invoices, invoice decisions), plus the AI's own additive tables
+(`dispute_flags`, `ai_invoice_reviews`, `agent_audit_log`) and Postgres roles.
+Nothing about the portal's own schema changes — the AI's tables/roles sit alongside it.
 
 **Do not create new top-level files or folders without a clear reason tied to something the user
 asked for.**
@@ -100,21 +127,27 @@ immediately.
 
 ## Governance & safety — no hardcoded guardrails, no hardcoded auth
 
-This project has no AI — the governance model it demonstrates is narrower: **never hardcode
-authentication** (no literal username/password checks, no magic tokens in code) — identity comes
-from a real login table checked by Postgres itself (`pgcrypto`), never string comparisons in
-Python. Database access is enforced by real Postgres roles/GRANTs, not application-level checks —
-see `backend/scripts/northstar_web_security.sql` for the read/write app role vs. the read-only FDE
-role.
+The portal's own routes (`backend/northstar_web_api/`) keep the narrower story they always had:
+**never hardcode authentication** (no literal username/password checks, no magic tokens in code) —
+identity comes from a real login table checked by Postgres itself (`pgcrypto`), never string
+comparisons in Python. Database access is enforced by real Postgres roles/GRANTs, not
+application-level checks — see `backend/scripts/northstar_web_security.sql` for the read/write app
+role vs. the read-only FDE role.
+
+The AI's own routes (`backend/copilot_api/`, `copilot/`) carry the fuller 7-layer governance model
+documented in `Northstar-Copilot-POC`'s own docs (the project it was ported from) — including its
+own role-based access (an Analyst login can't reach Pending Approvals, the same restriction it
+always enforced) and its own database roles, distinct from the portal's. The two governance stories
+coexist in one codebase now but stay conceptually separate — this project's own application code
+never re-implements or hardcodes either one.
 
 ---
 
 ## Before writing any new code, run this checklist
 
-1. Does a plan doc for this step already exist in `docs/build-log/`? If not, write it first.
+1. Does `docs/01-how-the-ai-integration-works.md` need updating to reflect this change?
 2. Is this the minimum code needed to teach the concept for this step? (See the 5 questions
    above.)
 3. Does anything here touch permissions, data access, or an irreversible action? If yes, is it
    enforced by the database itself, not a hardcoded application check?
-4. After writing the code, has the plan doc been updated with what was actually built and why?
-5. Does this fit inside the existing folder structure without inventing a new top-level file?
+4. Does this fit inside the existing folder structure without inventing a new top-level file?

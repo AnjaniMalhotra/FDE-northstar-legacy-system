@@ -1,0 +1,99 @@
+{
+  "ANALYST": {
+    "description": "Reviews individual invoices, checks reconciliation and policy, and proposes dispute flags. Cannot approve their own flags.",
+    "data_read": [
+      "carriers",
+      "shipments",
+      "dock_events",
+      "invoices",
+      "invoice_decisions",
+      "dispute_flags"
+    ],
+    "data_write": [],
+    "ui_tabs": [
+      "dashboard",
+      "chat"
+    ],
+    "ai_tools": [
+      "query_northstar_data",
+      "get_carrier_invoice_history",
+      "get_carrier_flag_history",
+      "get_carrier_risk_profile",
+      "check_detention_reconciliation",
+      "check_linehaul_reconciliation",
+      "get_invoice_details",
+      "search_policy_documents",
+      "log_dispute_flag",
+      "get_dispute_flag_summary",
+      "get_shipment_status_summary"
+    ]
+  },
+  "MANAGER": {
+    "description": "Everything an Analyst can do, plus approving or rejecting flags that are pending Tier 2 review, and recording the human Approve/Hold call on an AI-reviewed invoice.",
+    "data_read": [
+      "carriers",
+      "shipments",
+      "dock_events",
+      "invoices",
+      "invoice_decisions",
+      "dispute_flags",
+      "agent_audit_log"
+    ],
+    "data_write": [
+      "resolve_flag"
+    ],
+    "ui_tabs": [
+      "dashboard",
+      "chat",
+      "approvals",
+      "audit"
+    ],
+    "ai_tools": [
+      "query_northstar_data",
+      "get_carrier_invoice_history",
+      "get_carrier_flag_history",
+      "get_carrier_risk_profile",
+      "check_detention_reconciliation",
+      "check_linehaul_reconciliation",
+      "get_invoice_details",
+      "search_policy_documents",
+      "log_dispute_flag",
+      "get_dispute_flag_summary",
+      "get_shipment_status_summary"
+    ]
+  },
+  "ADMIN": {
+    "description": "Everything a Manager can do. Also carries the Compliance-tier capabilities this pass doesn't give their own separate portal role \u2014 not a business role in the usual sense, this is the system-administration identity.",
+    "data_read": [
+      "carriers",
+      "shipments",
+      "dock_events",
+      "invoices",
+      "invoice_decisions",
+      "dispute_flags",
+      "agent_audit_log"
+    ],
+    "data_write": [
+      "resolve_flag"
+    ],
+    "ui_tabs": [
+      "dashboard",
+      "chat",
+      "approvals",
+      "audit"
+    ],
+    "ai_tools": [
+      "query_northstar_data",
+      "get_carrier_invoice_history",
+      "get_carrier_flag_history",
+      "get_carrier_risk_profile",
+      "check_detention_reconciliation",
+      "check_linehaul_reconciliation",
+      "get_invoice_details",
+      "search_policy_documents",
+      "log_dispute_flag",
+      "get_dispute_flag_summary",
+      "get_shipment_status_summary"
+    ]
+  }
+}

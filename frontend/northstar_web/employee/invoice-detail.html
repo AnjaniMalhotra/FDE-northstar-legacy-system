@@ -17,6 +17,9 @@
       <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
       <a href="booking-requests.html"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
       <a href="invoices.html" class="active"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+      <a href="ai-approvals.html"><span class="icon">🤖</span> Pending Approvals</a>
+      <a href="ai-audit.html"><span class="icon">📜</span> Audit Log</a>
+      <a href="policy-reference.html"><span class="icon">📄</span> Policies</a>
     </nav>
     <div class="sidebar-foot">
       <span class="who" id="who-label">—</span>
@@ -43,6 +46,7 @@
 <script src="../shared/js/db.js"></script>
 <script src="../shared/js/auth.js"></script>
 <script src="../shared/js/ui.js"></script>
+<script src="../shared/js/ai_widget.js"></script>
 <script>
 (async () => {
 const user = await NorthstarAuth.requireAuth("employee");
@@ -86,11 +90,12 @@ if (user) {
         </div>
       </div>
 
-      <p class="helper-notice" style="margin-top:18px;">Northstar's systems do not automatically verify detention hours billed against the
-        load's agreed terms or the real dock timestamps — use the tabs above (Dock Events, Shipments, Carrier Master, TransCheck, Policy Reference)
-        to compare by hand before deciding.</p>
+      <div class="card" style="margin-top:18px;">
+        <div class="card-header"><h2>AI Review</h2></div>
+        <div class="card-body" id="ai-review-panel"><p class="muted">Checking AI review status&hellip;</p></div>
+      </div>
 
-      <div class="card">
+      <div class="card" style="margin-top:18px;">
         <div class="card-header"><h2>Decision</h2></div>
         <div class="card-body">
           ${invoice.status === "APPROVED"
@@ -140,10 +145,68 @@ if (user) {
         });
       });
     }
+
+    renderAiReviewPanel(shipment.id);
   }
   await render();
 }
 })();
+
+/* ------------------------------------------
+   AI REVIEW PANEL — additive only: shows the AI's own reconciliation
+   review of this invoice, entirely separate from the Approve/Hold flow
+   above, which this never touches. Same requireAiSession() gate as
+   ai-approvals.html/ai-audit.html — an inline login box right here if the
+   AI session isn't live yet, rather than sending the user elsewhere to
+   log in.
+   ------------------------------------------ */
+async function renderAiReviewPanel(shipmentId) {
+  const panel = document.getElementById("ai-review-panel");
+
+  async function loadAndRender() {
+    let data;
+    try {
+      data = await aiApiRequest("GET", `/invoices/${shipmentId}`);
+    } catch (e) {
+      panel.innerHTML = `<p class="helper-notice">Could not load the AI review: ${aiEscapeHtml(e.message)}</p>`;
+      return;
+    }
+    if (data.aiStatus === "NOT_REVIEWED") {
+      panel.innerHTML = `<p class="muted" style="margin-bottom:12px;">The AI hasn't reviewed this invoice yet — this checks detention and linehaul charges against real dock events and company policy.</p>
+        <button class="btn btn-primary" id="run-ai-review-btn">Run AI Review</button>`;
+      document.getElementById("run-ai-review-btn").addEventListener("click", async () => {
+        panel.innerHTML = `<p class="muted">Running AI review&hellip; this checks real dock events and policy, and may take a moment.</p>`;
+        try {
+          await aiApiRequest("POST", `/invoices/${shipmentId}/review`);
+        } catch (e) {
+          panel.innerHTML = `<p class="helper-notice">AI review failed: ${aiEscapeHtml(e.message)}</p>`;
+          return;
+        }
+        await loadAndRender();
+      });
+      return;
+    }
+    renderReviewResult(data);
+  }
+
+  function renderReviewResult(data) {
+    const checksHtml = (data.review && data.review.aiReview && data.review.aiReview.checks || []).map((check) => `
+      <h4 style="margin:12px 0 6px;">${aiEscapeHtml(check.title)}</h4>
+      ${check.facts && check.facts.length ? `<table><tbody>${check.facts.map((f) => `<tr><td>${aiEscapeHtml(f.label)}</td><td class="num">${aiEscapeHtml(f.value)}</td></tr>`).join("")}</tbody></table>` : ""}
+      ${check.outcomeLine ? `<p style="font-weight:700; margin-top:6px;">${aiEscapeHtml(check.outcomeLine)}</p>` : ""}
+    `).join("");
+    const recommendationHtml = data.review && data.review.aiReview && data.review.aiReview.recommendation
+      ? `<h4 style="margin:14px 0 6px;">AI Recommendation</h4>${aiRenderMarkdown(data.review.aiReview.recommendation)}`
+      : "";
+    const flagHtml = data.flag
+      ? `<p class="helper-notice" style="margin-top:12px;">Flag: ${aiEscapeHtml(data.flag.tier)}/${aiEscapeHtml(data.flag.status)}, ${aiEscapeHtml(data.flag.discrepancyAmount)} discrepancy &mdash; ${aiEscapeHtml(data.flag.reasoning)}</p>`
+      : "";
+    panel.innerHTML = `${checksHtml}${recommendationHtml}${flagHtml}
+      <p class="muted" style="margin-top:14px;">This is the AI's own finding — it never approves or holds a payment itself. The Decision above, made by a human, is what actually determines whether this invoice gets paid.</p>`;
+  }
+
+  requireAiSession(panel, loadAndRender);
+}
 </script>
 </body>
 </html>

@@ -1,0 +1,53 @@
+# Local, no-GCP-account-needed way to run the whole thing: a throwaway Postgres plus the app,
+# both containers. First `docker compose up` bootstraps the database from scratch (the portal's
+# own schema/security/seed, then the AI's own additive schema/security) and ingests the policy
+# documents into Pinecone if PINECONE_API_KEY is set; every run after that is fast since
+# bootstrap.sh skips what's already done.
+#
+# Needs a real PINECONE_API_KEY and OPENAI_API_KEY — put them in a sibling .env file (docker
+# compose reads that automatically for the ${...} values below) or export them in your shell.
+# Without PINECONE_API_KEY, the app still starts; only RAG policy search won't work yet.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - northstar_ai_pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_ADMIN_USER: postgres
+      DB_ADMIN_PASSWORD: postgres
+      NORTHSTAR_WEB_DB_NAME: northstar_web
+      NORTHSTAR_WEB_APP_PASSWORD: docker_dev_password
+      NORTHSTAR_WEB_FDE_USER: northstar_web_fde_ro
+      NORTHSTAR_WEB_FDE_PASSWORD: docker_dev_password
+      # --- AI copilot — same database, additive tables/roles ---
+      DB_NAME: northstar_web
+      DB_AGENT_USER: northstar_web_agent
+      DB_AGENT_PASSWORD: docker_dev_password
+      AUTH_MODE: LOCAL_DEV
+      DB_ANALYST_PASSWORD: docker_dev_password
+      DB_MANAGER_PASSWORD: docker_dev_password
+      DB_HUMAN_ADMIN_PASSWORD: docker_dev_password
+      POC_DEMO_STAGE: PART_2
+      PINECONE_API_KEY: ${PINECONE_API_KEY:-}
+      # OPENAI, not OLLAMA (.env.example's own local-dev default): there's no
+      # Ollama runtime inside this container for LLM_PROVIDER=OLLAMA to reach,
+      # and OpenAI is the tested, reliable path anyway (see the TDD, §2.3).
+      LLM_PROVIDER: OPENAI
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: gpt-4o-mini
+    ports:
+      - "8020:8080"
+
+volumes:
+  northstar_ai_pgdata:

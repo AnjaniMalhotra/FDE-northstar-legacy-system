@@ -20,6 +20,9 @@
       <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
       <a href="booking-requests.html"><span class="icon">📥</span> Booking Requests <span class="badge-count" id="badge-bookings" style="display:none;"></span></a>
       <a href="invoices.html"><span class="icon">🧾</span> Invoices <span class="badge-count" id="badge-invoices" style="display:none;"></span></a>
+      <a href="ai-approvals.html"><span class="icon">🤖</span> Pending Approvals</a>
+      <a href="ai-audit.html"><span class="icon">📜</span> Audit Log</a>
+      <a href="policy-reference.html"><span class="icon">📄</span> Policies</a>
     </nav>
     <div class="sidebar-foot">
       <span class="who" id="who-label">—</span>
@@ -54,6 +57,7 @@
 <script src="../shared/js/db.js"></script>
 <script src="../shared/js/auth.js"></script>
 <script src="../shared/js/ui.js"></script>
+<script src="../shared/js/ai_widget.js"></script>
 <script>
 (async () => {
 const user = await NorthstarAuth.requireAuth("employee");

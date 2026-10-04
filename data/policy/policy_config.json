@@ -1,0 +1,9 @@
+{
+  "version": "1.0",
+  "effective_date": "2026-01",
+  "minimum_time_variance_minutes": 15,
+  "minimum_overcharge": "25.00",
+  "tier_2_overcharge": "250.00",
+  "repeat_flag_count": 3,
+  "repeat_window_days": 90
+}

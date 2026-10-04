@@ -162,6 +162,9 @@ ul { margin: 0; padding: 0; list-style: none; }
 .kpi-num { font-family: var(--font-display); font-size: 28px; font-weight: 800; color: var(--ink-900); display: block; line-height: 1.15; }
 .kpi-tile.accent .kpi-num { color: var(--accent); }
 .kpi-tile.accent .kpi-icon { background: var(--accent); color: var(--accent-fg); }
+.kpi-tile.clickable { cursor: pointer; transition: border-color 0.15s ease, transform 0.1s ease; }
+.kpi-tile.clickable:hover { border-color: var(--accent); transform: translateY(-1px); }
+.kpi-tile.clickable.active { border-color: var(--accent); border-width: 2px; box-shadow: 0 0 0 3px var(--accent-weak); }
 
 /* ------------------------------------------
    FILTER BAR & TABLES
@@ -245,6 +248,34 @@ textarea { resize: vertical; min-height: 80px; }
 @media (max-width: 700px) { .form-row { grid-template-columns: 1fr; } }
 .form-actions { display: flex; gap: 10px; margin-top: 20px; }
 .error-text { color: var(--bad-fg); font-size: 12.5px; margin-top: 6px; font-weight: 600; }
+
+/* ------------------------------------------
+   ACTION MODAL — the Approve/Hold/Reject confirm dialog
+   (shared/js/ui.js's ActionModal), used for every such action in the
+   portal. Previously had no rules at all here, so it rendered unstyled.
+   ------------------------------------------ */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-backdrop[hidden] { display: none; }
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  max-width: 440px;
+  padding: 24px;
+}
+.modal h3 { font-size: 17px; font-weight: 800; margin-bottom: 8px; }
+.modal .desc { font-size: 13.5px; color: var(--ink-500); margin-bottom: 16px; line-height: 1.5; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 
 .btn {
   display: inline-flex;
