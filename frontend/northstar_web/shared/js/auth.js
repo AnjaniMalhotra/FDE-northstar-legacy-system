@@ -3,9 +3,12 @@
  * backend/northstar_web_api/. Login sets an HttpOnly session cookie the
  * browser handles automatically; there is no client-readable session
  * token and no password ever touches localStorage/sessionStorage.
+ * A relative API_BASE means this works unchanged whether the app is
+ * running on localhost, in Docker, or deployed on Cloud Run — the API and
+ * the site are always served from the same origin.
  */
 const NorthstarAuth = (() => {
-  const API_BASE = "http://localhost:8020/api/auth";
+  const API_BASE = "/api/auth";
 
   // ------------------------------------------
   // LOGIN — POST credentials, server sets the session cookie on success

@@ -1,17 +1,22 @@
 """
 The FastAPI backend for frontend/northstar_web/ — real login (Postgres pgcrypto),
-real sessions (HttpOnly cookie), and a small generic REST API over the
-northstar_web database. This is the only thing standing between the
-browser and the database; an FDE instead connects to Postgres directly
-with the read-only northstar_web_fde_ro role (see scripts/northstar_web_security.sql).
+real sessions (HttpOnly cookie), a small generic REST API over the
+northstar_web database, AND (at the bottom of this file) the static site
+itself, served from the same process/port so there's one service to run
+and no cross-origin cookie handling to worry about. An FDE connects to
+Postgres directly with the read-only northstar_web_fde_ro role instead of
+going through this API at all (see scripts/northstar_web_security.sql).
 
-Run: uvicorn backend.northstar_web_api.main:app --reload --port 8020
+Run: uvicorn backend.northstar_web_api.main:app --reload --port 8080
+Then open http://localhost:8080/
 """
 # ------------------------------------------
 # IMPORTS
 # ------------------------------------------
+from pathlib import Path
+
 from fastapi import APIRouter, Cookie, Depends, FastAPI, HTTPException, Response
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
@@ -21,16 +26,9 @@ from backend.northstar_web_api.db import get_conn
 from backend.northstar_web_api.routes import router as collections_router
 
 # ------------------------------------------
-# APP + CORS — the static site (a different port) needs cross-origin cookies
+# APP
 # ------------------------------------------
 app = FastAPI(title="Northstar Web API")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:8010", "http://127.0.0.1:8010"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 auth_router = APIRouter(prefix="/api/auth")
 
@@ -106,3 +104,11 @@ def submit_contact(body: ContactBody, conn: Connection = Depends(get_conn)):
 
 
 app.include_router(collections_router)
+
+# ------------------------------------------
+# STATIC SITE — mounted last, so every /api/... route above is matched
+# first; anything else resolves to a real file under frontend/northstar_web/
+# (html=True serves index.html at "/").
+# ------------------------------------------
+frontend_dir = Path(__file__).resolve().parent.parent.parent / "frontend" / "northstar_web"
+app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")

@@ -44,50 +44,96 @@
       <a href="policy-reference.html" class="active">📄 Policy Reference</a>
     </nav>
     <div class="content" style="max-width: 820px;">
-      <p class="helper-notice">Read this before deciding on a flagged discrepancy. Nothing in this system applies these rules for you — every threshold below is checked by hand.</p>
+      <p class="helper-notice">The four documents Finance &amp; Compliance uses to decide whether a carrier invoice is legitimate, what tier of review it needs, and when a carrier's own pattern of behavior — not just one invoice — becomes a risk worth escalating.</p>
 
       <div class="card policy-card" style="margin-bottom:18px;">
-        <div class="card-header"><h2>Accessorial Charge Audit &amp; Dispute Policy</h2></div>
+        <div class="card-header"><h2>1. Accessorial Charge Audit &amp; Dispute Policy</h2></div>
         <div class="card-body">
+          <p class="muted" style="margin-bottom:10px;">Agreed rates, free-time allowances, and per-hour detention rates for each load are set at booking time and live in the TMS. This policy governs how a detention charge gets <em>checked</em> against those terms — not what the terms are.</p>
           <h3><span class="num-badge">2</span>Detention Charge Verification</h3>
           <ul>
-            <li>A detention charge is a <strong>verified discrepancy</strong> only when the billed time differs from the actual dock dwell time by more than <strong>15 minutes</strong>, <em>and</em> the resulting dollar difference is more than <strong>$25</strong>.</li>
-            <li>Only an <strong>overcharge</strong> (billed &gt; actual) can be put on hold as a dispute. An undercharge is a data-quality note, never a hold.</li>
-            <li>Anything smaller than this is normal rounding/timestamp noise — do not hold it.</li>
+            <li>A detention charge is a <strong>verified discrepancy</strong> only when the billed time differs from the actual dock dwell time (arrival to departure) by more than <strong>15 minutes</strong>, <em>and</em> the resulting dollar difference is more than <strong>$25</strong>. Both conditions must be true — either one alone is not enough.</li>
+            <li>Only an <strong>overcharge</strong> (billed &gt; actual) can be put on hold as a dispute. An undercharge is a data-quality note, never a hold — flagging routine noise trains people to ignore the system.</li>
+            <li><strong>Worked example:</strong> dock log shows arrival 9:00 AM, departure 11:24 AM — 2 hrs 24 min dwell. Free time is 2 hrs, so the real billable overage is 24 minutes: 0.4 hrs &times; $65/hr = <strong>$26.00 actual</strong>. If the carrier billed 0.55 hrs (33 min) instead, that's a 9-minute, $9.75 gap — under <em>both</em> thresholds, so it is <strong>not</strong> a verified discrepancy, just rounding noise. If they'd billed 2.0 hrs instead, that's a 1 hr 36 min, $104.00 gap — over both thresholds, and is verified.</li>
           </ul>
           <h3><span class="num-badge">3</span>Escalation Tiers</h3>
           <ul>
-            <li><strong>Tier 1 (any employee):</strong> a single invoice with a verified discrepancy under <strong>$250</strong> can be resolved directly.</li>
-            <li><strong>Tier 2 (Admin sign-off required):</strong> the discrepancy is <strong>$250 or more</strong>, OR the carrier already has <strong>2+ upheld disputes</strong> in the trailing 90 days, OR the carrier is on the <strong>Elevated Risk</strong> list.</li>
+            <li><strong>Tier 1 (Analyst-level):</strong> a single invoice with a verified discrepancy <strong>under $250</strong> may be logged and flagged for carrier follow-up without manager sign-off. This is a flag, not a payment action.</li>
+            <li><strong>Tier 2 (Manager-level), required when any of these is true:</strong> the verified discrepancy is <strong>$250 or more</strong>; the carrier already has <strong>2+ upheld disputes</strong> in the trailing 90 days; or the carrier is on the <strong>Elevated Risk</strong> list (see document 4 below).</li>
           </ul>
           <h3><span class="num-badge">4</span>Repeat Pattern Rule</h3>
           <ul>
-            <li>3 or more flagged/on-hold invoices from the same carrier within a rolling 90-day window requires Tier 2 review — regardless of any single invoice's dollar amount.</li>
+            <li><strong>3 or more</strong> flagged invoices from the same carrier — of <em>any</em> kind, detention or linehaul, not just the same charge type — within a rolling <strong>90-day window</strong> requires Tier 2 review, regardless of any single invoice's dollar amount. A pattern of small discrepancies is itself a signal, even when no single invoice is large.</li>
           </ul>
           <h3><span class="num-badge">5</span>What May Happen Without Extra Sign-off</h3>
           <ul>
-            <li>Reading invoice/shipment/dock data, and holding a Tier 1 payment with a note, may be done directly.</li>
-            <li>Disputing a charge with a carrier, releasing a held payment, or placing a carrier on Elevated Risk always requires a second person's review.</li>
+            <li><strong>May do directly:</strong> read invoice/shipment/dock data; calculate actual vs. billed detention; log a Tier 1 flag with its reasoning.</li>
+            <li><strong>Always requires a second person's review, at any tier:</strong> disputing a charge with a carrier, holding or releasing a payment, or placing a carrier on the Elevated Risk list.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card policy-card" style="margin-bottom:18px;">
+        <div class="card-header"><h2>2. Linehaul Rate Verification Policy</h2></div>
+        <div class="card-body">
+          <p class="muted" style="margin-bottom:10px;">Linehaul is not an accessorial charge — it's the base transportation rate itself, agreed at booking. Its check is simpler than detention's: no time dimension, only a dollar comparison.</p>
+          <h3><span class="num-badge">2</span>Linehaul Verification</h3>
+          <ul>
+            <li>A linehaul charge is a <strong>verified discrepancy</strong> when the billed amount exceeds the rate agreed at booking (in the TMS) by more than <strong>$25</strong>. As with detention, only an overcharge creates a dispute flag — billing less than agreed is a data-quality note, not a flag.</li>
+          </ul>
+          <h3><span class="num-badge">3</span>Escalation — Same Rules as Detention</h3>
+          <ul>
+            <li>A verified linehaul discrepancy follows the exact same Escalation Tiers and Repeat Pattern Rule as detention (document 1, sections 3–4) — those rules key off the dollar amount and the carrier's overall flag history, not the charge type. A carrier's Tier 2 trigger counts linehaul and detention flags <strong>together</strong>: a pattern of billing problems is a pattern, regardless of which line item it shows up on.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card policy-card" style="margin-bottom:18px;">
+        <div class="card-header"><h2>3. Detention Dispute Workflow (SOP)</h2></div>
+        <div class="card-body">
+          <p class="muted" style="margin-bottom:10px;">Document 1 defines the <em>rule</em> — what counts as a discrepancy, what tier applies. This defines the <em>steps</em> — what a person actually does once a flag exists.</p>
+          <h3>Reviewing a Flagged Discrepancy (Analyst)</h3>
+          <ul>
+            <li>Open the flagged invoice and read the reconciliation facts (actual vs. billed detention) — confirm the numbers make sense; never approve or dismiss a flag based on its tier label alone.</li>
+            <li>If the discrepancy looks like a data problem rather than a billing problem, follow "Missing or Incomplete Dock Timestamps" below instead of treating it as a carrier dispute.</li>
+            <li>A Tier 1 flag needs no further analyst action once logged. A Tier 2 flag must be escalated to a manager — an analyst never resolves one directly.</li>
+          </ul>
+          <h3>Manager Review — Approving or Rejecting a Pending Flag</h3>
+          <ul>
+            <li>Review the flagged invoice, the reconciliation facts, and the carrier's full flag history.</li>
+            <li><strong>Approve</strong> the flag if the discrepancy is confirmed and worth raising with the carrier — approving records that Northstar intends to dispute it, it does not dispute the charge itself.</li>
+            <li><strong>Reject</strong> the flag if it turns out to be a data issue or a legitimate charge, and note why.</li>
+            <li>After the dispute conversation with the carrier concludes, record the outcome: <strong>Upheld</strong> if the carrier agreed the charge was wrong, or <strong>Denied</strong> if the carrier gave a legitimate explanation. Only an approved flag can later have an outcome recorded.</li>
+          </ul>
+          <h3>Missing or Incomplete Dock Timestamps</h3>
+          <ul>
+            <li>If a load's arrival or departure timestamp is missing, actual detention time cannot be computed and the invoice cannot be automatically flagged or cleared.</li>
+            <li>Do not assume a charge is legitimate just because it couldn't be checked — a missing timestamp is not evidence the charge is fine.</li>
+            <li>Check with dispatch or the carrier for the missing timestamp before approving payment; if it truly cannot be recovered, escalate to a manager rather than approving at face value.</li>
+          </ul>
+          <h3>Handling a Carrier on the Elevated Risk List</h3>
+          <ul>
+            <li>Every invoice from an Elevated Risk carrier is automatically Tier 2, regardless of dollar amount — a manager must personally review every one; none can be auto-approved.</li>
+            <li>Removing a carrier from the list is a manager-level decision, made only after a sustained period without new upheld disputes, and must be recorded with a reason.</li>
           </ul>
         </div>
       </div>
 
       <div class="card policy-card">
-        <div class="card-header"><h2>Detention Dispute Workflow (SOP)</h2></div>
+        <div class="card-header"><h2>4. Internal Memo — Carrier Risk Indicators</h2></div>
         <div class="card-body">
-          <h3>Reviewing a Flagged Discrepancy</h3>
+          <p class="muted" style="margin-bottom:10px;">Confidential — Operations &amp; Compliance. Helps distinguish an honest billing mistake from a pattern worth escalating: document 1 defines the dollar/time threshold for a single invoice; this memo defines when a carrier's behavior <em>across multiple invoices</em> should be treated as a risk signal.</p>
+          <h3>Indicators of Elevated Carrier Risk</h3>
           <ul>
-            <li>Open the invoice and the real dock timestamps — confirm the numbers make sense before acting.</li>
-            <li>If the discrepancy looks like a data problem (e.g. a missing timestamp), don't treat it as a carrier dispute — see below.</li>
+            <li>Repeated detention overbilling above the policy tolerance within a rolling 90-day window (the Repeat Pattern Rule, document 1 §4).</li>
+            <li>A load tendered to one carrier, then re-confirmed for pickup under a different MC number shortly before the scheduled pickup time — a classic double-brokering signal.</li>
+            <li>Invoice remittance (bank/payment) details changing between submissions without any prior notice from the carrier.</li>
+            <li>A carrier's safety rating dropping to "Conditional" at the same time as any open billing dispute.</li>
           </ul>
-          <h3>Missing or Incomplete Dock Timestamps</h3>
+          <h3>Recommended Action</h3>
           <ul>
-            <li>Do not assume a charge is legitimate just because it couldn't be checked — that's not evidence the charge is fine.</li>
-            <li>Check with dispatch or the carrier for the missing timestamp before approving payment.</li>
-          </ul>
-          <h3>Carriers on the Elevated Risk List</h3>
-          <ul>
-            <li>Every invoice from an Elevated Risk carrier is treated as Tier 2, regardless of dollar amount — review it personally, never auto-approve.</li>
+            <li>A carrier meeting <strong>two or more</strong> of the above indicators should be placed on the Elevated Risk list. Per document 1, any carrier on that list requires Tier 2 review for <em>all</em> future invoices, not only the ones individually flagged.</li>
+            <li>Placing a carrier on this list always requires human approval — it is never an automatic action.</li>
           </ul>
         </div>
       </div>

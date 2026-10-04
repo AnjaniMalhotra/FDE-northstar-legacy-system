@@ -1,0 +1,32 @@
+# Local, no-GCP-account-needed way to run the whole thing: a throwaway Postgres plus the app,
+# both containers. First `docker compose up` bootstraps the database from scratch (schema,
+# roles, starter seed, full ~25/50/100 dataset) and takes a little longer; every run after that
+# is fast since bootstrap.sh skips what's already done.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - northstar_pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_ADMIN_USER: postgres
+      DB_ADMIN_PASSWORD: postgres
+      NORTHSTAR_WEB_DB_NAME: northstar_web
+      NORTHSTAR_WEB_APP_PASSWORD: docker_dev_password
+      NORTHSTAR_WEB_FDE_USER: northstar_web_fde_ro
+      NORTHSTAR_WEB_FDE_PASSWORD: docker_dev_password
+    ports:
+      - "8080:8080"
+
+volumes:
+  northstar_pgdata:

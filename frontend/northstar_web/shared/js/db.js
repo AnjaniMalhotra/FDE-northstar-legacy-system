@@ -5,7 +5,7 @@
  * insert, update) so page logic barely changed — they're just async now.
  */
 const NorthstarDB = (() => {
-  const API_BASE = "http://localhost:8020/api";
+  const API_BASE = "/api";
 
   // ------------------------------------------
   // REQUEST — shared fetch wrapper: cookies for the session, JSON in/out
