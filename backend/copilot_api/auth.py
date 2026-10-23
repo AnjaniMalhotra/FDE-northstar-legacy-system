@@ -65,3 +65,12 @@ _CHAT_THREADS: dict[str, ChatThread] = {}
 
 def get_chat_thread(portal_token: str | None = Cookie(default=None, alias=PORTAL_SESSION_COOKIE)) -> ChatThread:
     return _CHAT_THREADS.setdefault(portal_token, ChatThread(thread_id=str(uuid.uuid4())))
+
+
+# ------------------------------------------
+# CLEAR CHAT THREAD — drops this session's cached thread so the next
+# get_chat_thread() call above starts a fresh LangGraph thread_id. Backs
+# the widget's "Clear chat" button.
+# ------------------------------------------
+def clear_chat_thread(portal_token: str | None = Cookie(default=None, alias=PORTAL_SESSION_COOKIE)) -> None:
+    _CHAT_THREADS.pop(portal_token, None)

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import text
 
-from backend.copilot_api.auth import ChatThread, User, get_chat_thread, require_tab
+from backend.copilot_api.auth import ChatThread, User, clear_chat_thread, get_chat_thread, require_tab
 from backend.copilot_api.routes.invoice_routes import _derive_ai_status
 from copilot.agent_runner import ask
 from copilot.dashboard_summary import get_flag_summary, get_shipment_status_summary
@@ -34,6 +34,16 @@ def chat(body: ChatBody, user: User = Depends(require_tab("chat")), thread: Chat
         thread.initialized = True
     response = ask(body.message, thread_config, role=user.role)
     return {"response": response}
+
+
+# ------------------------------------------
+# CLEAR CHAT — backs the widget's "Clear chat" button: drops this
+# session's LangGraph thread so the next message starts a fresh
+# conversation, with no memory of what came before.
+# ------------------------------------------
+@router.delete("/chat")
+def clear_chat(user: User = Depends(require_tab("chat")), _: None = Depends(clear_chat_thread)):
+    return {"ok": True}
 
 
 # ------------------------------------------

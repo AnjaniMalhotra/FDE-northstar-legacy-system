@@ -48,7 +48,7 @@
   <div class="info-grid reveal">
     <div class="info-card">
       <h3>Send Us a Message</h3>
-      <form id="contact-form" onsubmit="event.preventDefault(); alert('Thank you for contacting Northstar Freight. Our dispatch team will reach out to you within 1 business hour.');">
+      <form id="contact-form">
         <div class="field">
           <label for="name">Your Name</label>
           <input type="text" id="name" name="name" required placeholder="e.g. Dana Whitfield">
@@ -76,6 +76,7 @@
           <label for="message">Message</label>
           <textarea id="message" name="message" rows="4" required placeholder="Tell us about your lane requirements or freight volume..."></textarea>
         </div>
+        <p class="error-text" id="contact-error" hidden>Something went wrong — please try again.</p>
         <button type="submit" class="btn btn-primary btn-block" style="margin-top: 10px;">Send Message &rarr;</button>
       </form>
     </div>
@@ -156,5 +157,33 @@
 </footer>
 
 <script src="shared/js/reveal.js"></script>
+<script>
+/* Contact form — POSTs to the one unauthenticated endpoint that accepts
+   it (see backend/northstar_web_api/main.py's /api/contact); an
+   FDE/admin reads the contact_inquiries table directly. */
+document.getElementById("contact-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById("contact-error");
+  errorEl.hidden = true;
+  try {
+    const res = await fetch("/api/contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: document.getElementById("name").value,
+        email: document.getElementById("email").value,
+        phone: document.getElementById("phone").value || null,
+        subject: document.getElementById("subject").value,
+        message: document.getElementById("message").value,
+      }),
+    });
+    if (!res.ok) throw new Error();
+    alert("Thank you for contacting Northstar Freight. Our dispatch team will reach out to you within 1 business hour.");
+    e.target.reset();
+  } catch {
+    errorEl.hidden = false;
+  }
+});
+</script>
 </body>
 </html>

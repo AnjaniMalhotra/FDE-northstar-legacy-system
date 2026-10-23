@@ -34,6 +34,7 @@ psql -d "${NORTHSTAR_WEB_DB_NAME:-northstar_web}" \
     -v fde_password="$NORTHSTAR_WEB_FDE_PASSWORD" \
     -f scripts/northstar_web_security.sql
 psql -d "${NORTHSTAR_WEB_DB_NAME:-northstar_web}" -f scripts/northstar_web_migrate_contact.sql
+psql -d "${NORTHSTAR_WEB_DB_NAME:-northstar_web}" -f scripts/northstar_web_migrate_portal_access_requests.sql
 
 WEB_ROW_COUNT=$(psql -d "${NORTHSTAR_WEB_DB_NAME:-northstar_web}" -tAc "SELECT COUNT(*) FROM carriers" 2>/dev/null || echo 0)
 if [ "$WEB_ROW_COUNT" -eq 0 ]; then

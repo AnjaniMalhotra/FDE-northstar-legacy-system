@@ -111,6 +111,30 @@ def submit_contact(body: ContactBody, conn: Connection = Depends(get_conn)):
 
 
 # ------------------------------------------
+# PUBLIC PORTAL ACCESS REQUEST FORM — same reasoning as the contact form
+# above: an unauthenticated, write-only endpoint for a company that has no
+# account yet (see scripts/northstar_web_migrate_portal_access_requests.sql),
+# registered before collections_router for the same route-ordering reason.
+# ------------------------------------------
+class PortalAccessRequestBody(BaseModel):
+    company_name: str
+    work_email: str
+    account_type: str
+
+
+@app.post("/api/portal-access-requests")
+def submit_portal_access_request(body: PortalAccessRequestBody, conn: Connection = Depends(get_conn)):
+    conn.execute(
+        text(
+            "INSERT INTO portal_access_requests (company_name, work_email, account_type)"
+            " VALUES (:company_name, :work_email, :account_type)"
+        ),
+        body.model_dump(),
+    )
+    return {"ok": True}
+
+
+# ------------------------------------------
 # AI ROUTERS — the copilot brain, ported in from Northstar-Copilot-POC,
 # mounted under /api/ai/... so it can never collide with collections_router's
 # generic /api/{collection} catch-all below. One login only: the AI's own

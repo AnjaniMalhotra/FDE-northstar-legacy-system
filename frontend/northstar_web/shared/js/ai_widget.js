@@ -93,8 +93,12 @@ function injectAiWidgetStyles() {
     .ai-widget-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--ink-900); color: #fff; font-weight: 700; font-size: 13px; }
     .ai-widget-head a { color: #fff; opacity: 0.8; font-weight: 500; font-size: 11.5px; text-decoration: none; }
     .ai-widget-head a:hover { opacity: 1; text-decoration: underline; }
+    .ai-widget-head-actions { display: flex; align-items: center; gap: 10px; }
+    .ai-widget-clear { background: none; border: none; color: #fff; opacity: 0.8; font-weight: 500; font-size: 11.5px; cursor: pointer; }
+    .ai-widget-clear:hover { opacity: 1; text-decoration: underline; }
     .ai-widget-close { background: none; border: none; color: #fff; font-size: 18px; cursor: pointer; line-height: 1; }
-    .ai-widget-messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+    #ai-widget-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .ai-widget-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
     .ai-widget-msg { max-width: 88%; padding: 10px 12px; border-radius: 10px; font-size: 12.5px; white-space: pre-wrap; }
     .ai-widget-msg.user { align-self: flex-end; background: var(--accent); color: #fff; }
     .ai-widget-msg.assistant { align-self: flex-start; background: var(--ink-100); color: var(--ink-900); }
@@ -159,7 +163,10 @@ function renderAiWidget() {
     <div class="ai-widget-panel" id="ai-widget-panel" hidden>
       <div class="ai-widget-head">
         <span>Ask Northstar Copilot</span>
-        <button type="button" class="ai-widget-close" id="ai-widget-close" aria-label="Close">&times;</button>
+        <div class="ai-widget-head-actions">
+          <button type="button" class="ai-widget-clear" id="ai-widget-clear">Clear chat</button>
+          <button type="button" class="ai-widget-close" id="ai-widget-close" aria-label="Close">&times;</button>
+        </div>
       </div>
       <div id="ai-widget-body"></div>
     </div>`;
@@ -178,6 +185,18 @@ function renderAiWidget() {
     }
   });
   document.getElementById("ai-widget-close").addEventListener("click", () => { panel.hidden = true; });
+
+  document.getElementById("ai-widget-clear").addEventListener("click", async () => {
+    const messagesEl = document.getElementById("ai-widget-messages");
+    if (!messagesEl) return; // chat hasn't loaded yet — nothing to clear
+    try {
+      await aiApiRequest("DELETE", "/chat");
+    } catch (e) {
+      // the thread is per-session server state only; still reset the visible
+      // transcript below so the button always does something sensible
+    }
+    messagesEl.innerHTML = `<div style="color:var(--ink-500); font-size:12.5px;">e.g. &ldquo;Is the detention charge on shipment 98 legitimate?&rdquo;</div>`;
+  });
 
   async function loadWidgetBody() {
     requireAiSession(body, renderChatBody);
