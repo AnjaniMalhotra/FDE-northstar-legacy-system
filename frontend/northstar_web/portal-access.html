@@ -70,7 +70,7 @@
     <div class="info-card" style="max-width: 480px; margin: 0 auto;">
       <h3>Request Portal Access</h3>
       <p>Enterprise accounts are set up by our onboarding team after a quick verification call.</p>
-      <form id="access-form" onsubmit="event.preventDefault(); alert('Thank you. Our onboarding team will reach out within 1 business day to set up your account.'); this.reset();" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--ink-100);">
+      <form id="access-form" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--ink-100);">
         <div class="field">
           <label for="company">Company Name</label>
           <input type="text" id="company" required placeholder="e.g. Acme Manufacturing">
@@ -86,6 +86,7 @@
             <option value="carrier">Carrier — I want to haul loads</option>
           </select>
         </div>
+        <p class="error-text" id="access-error" hidden>Something went wrong — please try again.</p>
         <button type="submit" class="btn btn-primary btn-block" style="margin-top: 6px;">Request Access &rarr;</button>
       </form>
     </div>
@@ -155,6 +156,32 @@ document.querySelectorAll(".access-tab").forEach((tab) => {
     tab.classList.add("active");
     document.querySelector(`.access-panel[data-panel="${tab.dataset.tab}"]`).classList.add("active");
   });
+});
+
+/* Request Access form — POSTs to the one unauthenticated endpoint that
+   accepts it (see backend/northstar_web_api/main.py's /api/portal-access-requests);
+   an FDE/admin reads the portal_access_requests table directly, same as
+   the public Contact form's contact_inquiries. */
+document.getElementById("access-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById("access-error");
+  errorEl.hidden = true;
+  try {
+    const res = await fetch("/api/portal-access-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        company_name: document.getElementById("company").value,
+        work_email: document.getElementById("req-email").value,
+        account_type: document.getElementById("req-type").value.toUpperCase(),
+      }),
+    });
+    if (!res.ok) throw new Error();
+    alert("Thank you. Our onboarding team will reach out within 1 business day to set up your account.");
+    e.target.reset();
+  } catch {
+    errorEl.hidden = false;
+  }
 });
 </script>
 </body>
